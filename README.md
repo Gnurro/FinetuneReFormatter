@@ -18,7 +18,7 @@ More in-depth editing of rolling-context-targeted data in the form of .json file
 
 ### Planned Features:
 #### textadventure (re)formatting (WIP)
-Intended to allow organized creation of textadventure-formatted data. Current WIP allows inspection/editing of pre-chunked 'textadventure rolling context' based on a .json file format with text chunks + meta data.
+Intended to allow organized creation of textadventure-formatted data. Current WIP allows inspection/editing of pre-chunked 'textadventure rolling context' based on a .json file format with text chunks + meta data. Open 'chapter 1_65tkChunks.json' to see the WIP interface (file contains 65-token-chunked chapter 1 of Moby Dick with player action inserts in the currently used data format).
 #### GPT BPE token inspection and exploration (Idea)
 Check how a text is split into tokens, and explore the 'token dictionary' to find useful/detrimental token splits or check for token/sequence ambuiguity. Most likely will come with prompt/input format checking (e.g. certain WI/context insert formats).
 
