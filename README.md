@@ -11,6 +11,7 @@ Selecting a .txt plaintext file opens it in SourceInspector mode, which is inten
   - two different modes with different restrictiveness:
     - LineEnd mode checks for lines ending in anything but a small set of 'sentence-ending' characters
     - InLine mode checks for lines that contain no 'sentence-ending' characters
+    - NoDoubles mode checks for empty lines, iE double newlines
   - trailing newline at document end
 - missing EOT
 
