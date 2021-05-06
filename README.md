@@ -23,6 +23,7 @@ Intended to allow organized creation of textadventure-formatted data. Current WI
 Check how a text is split into tokens, and explore the 'token dictionary' to find useful/detrimental token splits or check for token/sequence ambuiguity. Most likely will come with prompt/input format checking (e.g. certain WI/context insert formats).
 
 ### Info:
+Written in Python 3.9  
 GUI uses PyQt5  
 Requirements supplied as venv. (Subject to change.)  
 
