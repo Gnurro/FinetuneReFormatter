@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor
 
-inData = json.loads(open("chapter 1_65tkChunks.json", "r", encoding="UTF-8").read())
+# inData = json.loads(open("chapter 1_65tkChunks.json", "r", encoding="UTF-8").read())
 
 encoder = get_encoder()
 
