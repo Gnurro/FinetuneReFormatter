@@ -110,6 +110,8 @@ class SourceInspector(QWidget):
     """
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
+    TODO:
+        - double newline checking mode
     """
     def __init__(self):
         super(SourceInspector, self).__init__()
@@ -147,7 +149,7 @@ class SourceInspector(QWidget):
         self.textLines = self.textField.toPlainText().split('\n')
 
         self.newlineModeComboBox = QComboBox()
-        self.newlineModeComboBox.addItems(['LineEnd', 'InLine'])
+        self.newlineModeComboBox.addItems(['LineEnd', 'InLine', 'NoDoubles'])
         self.newlineModeComboBox.currentIndexChanged.connect(self.newLineModeChange)
 
         self.nextBadLineButton = QPushButton()
@@ -162,6 +164,7 @@ class SourceInspector(QWidget):
         self.warningsLabel.setText('Warnings:')
         self.checkWarnables()
 
+        # putting all the widgets into layout:
         self.layout.addWidget(self.tokensLabel, 0, 0)
         self.layout.addWidget(self.tokenCountButton, 0, 1)
         self.layout.addWidget(self.tokensCheckBox, 0, 2)
@@ -175,6 +178,7 @@ class SourceInspector(QWidget):
         self.layout.addWidget(self.warningsLabel, 2, 0)
 
     def tokenCountToggle(self):
+        """switch realtime encoding/token count on and off"""
         self.doCountTokens = self.tokensCheckBox.isChecked()
         if self.tokensCheckBox.isChecked():
             self.tokenCountButton.setEnabled(False)
@@ -182,45 +186,56 @@ class SourceInspector(QWidget):
             self.tokenCountButton.setEnabled(True)
 
     def tokenButtonClick(self):
+        """on-demand token encoding and count"""
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
 
     def newLineModeChange(self):
+        """newline checking mode selection and updating"""
         self.newlineMode = self.newlineModeComboBox.currentText()
         print(f'Newline checking mode set to {self.newlineMode}')
         self.countBadLines()
 
     def countBadLines(self):
+        """count 'bad lines'/newlines that might be detrimental for finetuning"""
+        # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
         self.badLineCount = 0
-
+        # list of string that are proper ends of lines/end sentences:
         lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':']
-
+        # process line by line:
         for line in self.textLines:
-            if len(line) == 0:
-                continue
-
             lineIsFine = False
+            # handle empty lines; in NoDoubles mode these are assumed to be double newlines:
+            if len(line) == 0:
+                if self.newlineMode == 'NoDoubles':
+                    pass
+                else:
+                    continue
+            else:
+                if self.newlineMode == 'NoDoubles':
+                    lineIsFine = True
 
+            # handle lines depending on the substring they end with:
             if self.newlineMode == 'LineEnd':
                 for lineEnder in lineEnders:
                     if line.endswith(lineEnder):
                         lineIsFine = True
                         break
-
+            # handle lines depending on the presence of 'sentence enders':
             if self.newlineMode == 'InLine':
                 for lineEnder in lineEnders:
                     if lineEnder in line:
                         lineIsFine = True
                         break
-
+            # go on with the next line if it's fine:
             if lineIsFine:
                 continue
-
+            # add line to the list of bad lines and increment counter:
             self.badLineCount += 1
             self.badLineList.append(self.textLines.index(line))
-
+        # update GUI newline info display and button interactivity:
         self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
         if self.badLineCount == 0:
             self.nextBadLineButton.setEnabled(False)
@@ -228,54 +243,73 @@ class SourceInspector(QWidget):
             self.nextBadLineButton.setEnabled(True)
 
     def findBadLines(self):
+        """move the text cursor to the first bad newline and focus the text field"""
+        # ...but only if there are any:
         if len(self.badLineList) > 0:
+            # get the string position of the first bad newline:
             curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[0]]
+            # put the text cursor there:
             self.setTextCursorPosition(curBadLineTextIndex)
+            # focus on the text field so the cursor isn't placed somewhere else by manual mouseclick focus:
             self.textField.setFocus()
 
     def getLineStringIndexList(self):
+        """returns list of text string indexes of the start of lines"""
         return [match.start() for match in re.finditer('\n', self.textField.toPlainText())]
 
     def getTextCursor(self):
+        """returns the current text cursor object"""
         return self.textField.textCursor()
 
     def getTextCursorPosition(self):
+        """returns the current text cursor position string index"""
         return self.getTextCursor().position()
 
     def setTextCursorPosition(self, value):
+        """set the text cursor position to parameter string index"""
         textCursor = self.getTextCursor()
-        # textCursor.setPosition(value, QTextCursor.KeepAnchor)
         textCursor.setPosition(value)
         self.textField.setTextCursor(textCursor)
 
     def findMainWindow(self):
+        """helper method to conveniently get the MainWindow widget object"""
         for widget in app.topLevelWidgets():
             if isinstance(widget, QMainWindow):
                 return widget
         return None
 
     def textChange(self):
+        """event method for realtime text checking"""
+        # update token count if instant token encoding+counting is on:
         if self.doCountTokens:
             self.tokens = encoder.encode(self.textField.toPlainText())
             self.tokenCount = len(self.tokens)
             self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-
+        # update newline checks:
         self.newlineCount = self.textField.toPlainText().count('\n')
         self.textLines = self.textField.toPlainText().split('\n')
         self.countBadLines()
-
+        # update warnings:
         self.checkWarnables()
-
+        # update the cached text at toplevel:
         self.findMainWindow().curData = self.textField.toPlainText()
 
     def checkWarnables(self):
+        """
+        checks for miscellaneous issues
+
+        current warnings:
+            - missing EOT
+            - trailing newline at end
+        """
         warningStrings = []
         # check if text ends in EOT token:
         if not self.textField.toPlainText().endswith('<|endoftext|>'):
             warningStrings.append('Missing <|endoftext|> at document end!')
+        # check for trailing newline at end:
         if self.textField.toPlainText().endswith('\n'):
             warningStrings.append('Redundant empty newline at document end!')
-
+        # cat warnings or display that there ain't none of those:
         if len(warningStrings) > 0:
             self.warningsLabel.setText('Warnings: ' + ' '.join(warningStrings))
         else:
