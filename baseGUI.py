@@ -14,7 +14,7 @@ from GPT2.encoder import get_encoder
 
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
-from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox
+from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor
 
@@ -202,7 +202,7 @@ class SourceInspector(QWidget):
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
         self.badLineCount = 0
-        # list of string that are proper ends of lines/end sentences:
+        # list of strings that are proper ends of lines/end sentences:
         lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':']
         # process line by line:
         for line in self.textLines:
@@ -452,8 +452,7 @@ class ActionTextEdit(QWidget):
     Interactive widget holding a single chunk/action
 
     TODO:
-        - figure out menus
-        - figure out dropdown menu
+        -
     """
     def __init__(self, actionID=0, actionContent={'text': 'Action content text...', 'type': 'generic'}):
         super(ActionTextEdit, self).__init__()
@@ -465,7 +464,11 @@ class ActionTextEdit(QWidget):
 
         self.IDlabel = QLabel('Chunk ID: ' + str(actionID))
 
-        self.typeLabel = QLabel(actionContent['type'])
+        self.typeField = QLineEdit(actionContent['type'])
+        self.typeField.setMaxLength(12)
+        self.typeField.setMaximumWidth(80)
+        self.typeField.setEnabled(False)
+        self.typeField.editingFinished.connect(self.updateType)
 
         self.textField = QTextEdit()
         self.textField.setAcceptRichText(False)
@@ -478,23 +481,27 @@ class ActionTextEdit(QWidget):
 
         self.advancedMenu = QToolButton()
         self.advancedMenu.setText('More')
-        self.advancedMenu.setPopupMode(QToolButton.MenuButtonPopup)
+        self.advancedMenu.setPopupMode(QToolButton.InstantPopup)
         self.advancedMenu.setMenu(QMenu(self.advancedMenu))
+
         topSpliceAction = QWidgetAction(self.advancedMenu)
-        # topSpliceAction = QWidgetAction(self.advancedMenu, self.spliceAbove())
         topSpliceAction.setText('Add action above.')
         topSpliceAction.triggered.connect(self.spliceAbove)
         self.advancedMenu.menu().addAction(topSpliceAction)
-        # self.advancedMenu.menu().addAction(topSpliceAction)
+
         bottomSpliceAction = QWidgetAction(self.advancedMenu)
         bottomSpliceAction.setText('Add action below.')
+        bottomSpliceAction.triggered.connect(self.spliceBelow)
         self.advancedMenu.menu().addAction(bottomSpliceAction)
-        editTypeAction = QWidgetAction(self.advancedMenu)
-        editTypeAction.setText('Change action type.')
 
-        self.testButton = QPushButton()
-        self.testButton.setText('Eh?')
-        self.testButton.clicked.connect(self.spliceAbove)
+        self.editTypeAction = QWidgetAction(self.advancedMenu)
+        self.editTypeAction.setText('Edit action type.')
+        self.editTypeAction.triggered.connect(self.editActionType)
+        self.advancedMenu.menu().addAction(self.editTypeAction)
+
+        # self.testButton = QPushButton()
+        # self.testButton.setText('Eh?')
+        # self.testButton.clicked.connect(self.spliceAbove)
 
         self.layout.addWidget(self.textField, 0, 0, 4, 1)
 
@@ -502,11 +509,11 @@ class ActionTextEdit(QWidget):
 
         self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignRight)
 
-        self.layout.addWidget(self.typeLabel, 2, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignRight)
 
-        # self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignRight)
 
-        self.layout.addWidget(self.testButton, 3, 1, alignment=Qt.AlignRight)
+        # self.layout.addWidget(self.testButton, 3, 1, alignment=Qt.AlignRight)
 
 
     def findMainWindow(self):
@@ -528,6 +535,17 @@ class ActionTextEdit(QWidget):
     def spliceBelow(self):
         self.findMainWindow().curData.insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
+
+    def editActionType(self):
+        if not self.typeField.isEnabled():
+            self.typeField.setEnabled(True)
+            self.editTypeAction.setText('Stop type edit.')
+        elif self.typeField.isEnabled():
+            self.typeField.setEnabled(False)
+            self.editTypeAction.setText('Edit action type.')
+
+    def updateType(self):
+        self.findMainWindow().curData[self.actionID]['type'] = self.typeField.text()
 
 
 if __name__ == '__main__':
