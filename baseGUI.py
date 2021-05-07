@@ -2,7 +2,9 @@
 Base module for the GUI
 
 TODO:
-    - chopping/chunking widget
+    - intro screen
+        - with progress display on opening/tokenizing
+    - make tokenization optional to prevent large files from locking it up
 """
 
 import sys
@@ -26,6 +28,7 @@ from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor
 encoder = get_encoder()
 # get proper reverse token dictionary:
 fixEncodes = tokensToUTF.getFixEncodes()
+
 
 class MainWindow(QMainWindow):
     """
@@ -81,8 +84,8 @@ class MainWindow(QMainWindow):
             print('Current file type is plaintext, allowing appropriate modes...')
             self.allowedModes = ['InitialPrep', 'SourceInspector']
             self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
-            # self.setMode('SourceInspector')
-            self.setMode('InitialPrep')
+            self.setMode('SourceInspector')
+            # self.setMode('InitialPrep')
             self._createMenu()
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
@@ -154,18 +157,20 @@ class SourceInspector(QWidget):
 
         # instant token count:
         self.tokensLabel = QLabel()
-        self.tokens = encoder.encode(self.textField.toPlainText())
-        self.tokenCount = len(self.tokens)
+        # self.tokens = encoder.encode(self.textField.toPlainText())
+        self.tokens = []
+        # self.tokenCount = len(self.tokens)
+        self.tokenCount = 0
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
         # checkbox to turn off instant token count:
-        self.doCountTokens = True
+        self.doCountTokens = False
         self.tokensCheckBox = QCheckBox('Instant token count')
-        self.tokensCheckBox.setChecked(True)
+        self.tokensCheckBox.setChecked(False)
         self.tokensCheckBox.stateChanged.connect(self.tokenCountToggle)
         # on-demand token count button:
         self.tokenCountButton = QPushButton()
         self.tokenCountButton.setText('Count tokens')
-        self.tokenCountButton.setEnabled(False)
+        self.tokenCountButton.setEnabled(True)
         self.tokenCountButton.clicked.connect(self.tokenButtonClick)
 
         # newlines checking:
@@ -232,7 +237,9 @@ class SourceInspector(QWidget):
         self.badLineList = []
         self.badLineCount = 0
         # list of strings that are proper ends of lines/end sentences:
-        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':']
+        # lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':']
+        # lineEnders after trying on Moby Dick:
+        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':', '—', '*', ')', '_', '’', ']', ',']
         # process line by line:
         for line in self.textLines:
             lineIsFine = False
@@ -435,6 +442,7 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
+        - make tokenization on-demand
         - add dummy player input option
     """
     def __init__(self):
@@ -475,6 +483,9 @@ class InitialPrep(QWidget):
         self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
         self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
 
+        self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
+        self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
+
         self.getDataStats()
 
         self.layout.addWidget(self.dataStatsLabel, 0, 0)
@@ -489,6 +500,8 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.makeChunksFileSuffixLabel, 2, 2)
         self.layout.addWidget(self.makeChunksFileSuffix, 2, 3)
         self.layout.addWidget(self.makeChunksButton, 2, 4)
+
+        self.layout.addWidget(self.lineEndSpaceRemoveButton, 3, 0)
 
     def getDataStats(self):
         # characters:
@@ -598,6 +611,8 @@ class InitialPrep(QWidget):
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
             chunksOutFile.write(chunkListJSON)
 
+    def lineEndSpaceRemove(self):
+        self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
@@ -605,7 +620,6 @@ class InitialPrep(QWidget):
             if isinstance(widget, QMainWindow):
                 return widget
         return None
-
 
 
 class ActionStack(QWidget):
