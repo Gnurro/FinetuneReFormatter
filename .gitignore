@@ -1,6 +1,16 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 /chapter 1.txt
 /chapter 1 - Kopie.txt
 /chapter 1_fix.txt
 /chapter 1_sentences.json
 /outData.json
 /outText.txt
+/notebookVersion.ipynb
