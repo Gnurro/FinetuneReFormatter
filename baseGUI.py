@@ -6,6 +6,7 @@ TODO:
 """
 
 import sys
+import os
 
 import json
 
@@ -13,23 +14,25 @@ import re
 
 from GPT2.encoder import get_encoder
 
+import tokensToUTF
+
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
 from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor
 
-# inData = json.loads(open("chapter 1_65tkChunks.json", "r", encoding="UTF-8").read())
-
+# more handy encoder reference:
 encoder = get_encoder()
-
+# get proper reverse token dictionary:
+fixEncodes = tokensToUTF.getFixEncodes()
 
 class MainWindow(QMainWindow):
     """
     Main window, holding all the top-level things
 
-    TODO: modes?
-        -> assessment mode for raw data
+    TODO: modes!
+        -> prep mode for raw data
         -> token explorer
     TODO: settings
     """
@@ -40,16 +43,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(1000, 1000, 800, 800)
         self.move(800, 50)
 
-        self.fileSelect()
-
-        # self._createMenu()
-
         self.curFileInfo = ''
         self.curFilePath = ''
         self.curFileType = ''
         self.curFileName = ''
         self.allowedModes = []
         self.curData = ''
+
+        self.fileSelect()
 
         # self._createToolbar()
 
@@ -67,14 +68,8 @@ class MainWindow(QMainWindow):
             self.setCentralWidget(curSourceInspector)
         if modeID == 'InitialPrep':
             print('Set mode to InitialPrep.')
-
-    def setModeActionStack(self):
-        curActionStack = ActionStack()
-        self.setCentralWidget(curActionStack)
-
-    def setModeSourceInspector(self):
-        curSourceInspector = SourceInspector()
-        self.setCentralWidget(curSourceInspector)
+            curInitialPrep = InitialPrep()
+            self.setCentralWidget(curInitialPrep)
 
     def fileSelect(self):
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
@@ -86,7 +81,8 @@ class MainWindow(QMainWindow):
             print('Current file type is plaintext, allowing appropriate modes...')
             self.allowedModes = ['InitialPrep', 'SourceInspector']
             self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
-            self.setMode('SourceInspector')
+            # self.setMode('SourceInspector')
+            self.setMode('InitialPrep')
             self._createMenu()
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
@@ -145,9 +141,6 @@ class MainWindow(QMainWindow):
 class SourceInspector(QWidget):
     """
     Checking for common source text issues, like excessive newlines, with an interactive text editor
-
-    TODO:
-        - double newline checking mode
     """
     def __init__(self):
         super(SourceInspector, self).__init__()
@@ -437,6 +430,184 @@ class QCodeEditor(QPlainTextEdit):
         pass
 
 
+class InitialPrep(QWidget):
+    """
+    Utility mode to check raw data statistics and perform simple data preparation
+
+    TODO:
+        - add dummy player input option
+    """
+    def __init__(self):
+        super(InitialPrep, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.curCharCount = 0
+        self.curWordCount = 0
+        self.curLines = []
+        self.curLineCount = 0
+        self.tokens = []
+        self.tokenCount = 0
+        self.uniqueTokens = []
+        self.uniqueTokenCount = 0
+        self.tokenDistribution = {}
+
+        self.dataStatsLabel = QLabel('Stats:')
+        self.dataStatsLabel.setAlignment(Qt.AlignTop)
+        self.tokenDistLabel = QLabel('Token distribution:')
+
+        self.sentenceEndPlaceholder = '%%%%%'  # hope this thing doesn't show up in any data...
+        self.sentences = []
+
+        self.chopSentencesButton = QPushButton('Split into sentences and save')
+        self.chopSentencesButton.clicked.connect(self.exportSentenceList)
+        self.chopSentencesFileSuffixLabel = QLabel('Sentence file suffix:')
+        self.chopSentencesFileSuffix = QLineEdit('_sentences')
+
+        self.makeChunksButton = QPushButton('Create chunks and save')
+        self.makeChunksButton.clicked.connect(self.exportChunks)
+        self.makeChunksFileSuffixLabel = QLabel('Chunk file suffix: _(tokens/chunk)')
+        self.makeChunksFileSuffix = QLineEdit('tknChunks')
+        self.makeChunksFileTknsPerChunkLabel = QLabel('Maximum tokens per chunk:')
+        self.makeChunksFileTknsPerChunk = QSpinBox()
+        self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
+        self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
+
+        self.getDataStats()
+
+        self.layout.addWidget(self.dataStatsLabel, 0, 0)
+        self.layout.addWidget(self.tokenDistLabel, 0, 1)
+
+        self.layout.addWidget(self.chopSentencesFileSuffixLabel, 1, 0)
+        self.layout.addWidget(self.chopSentencesFileSuffix, 1, 1)
+        self.layout.addWidget(self.chopSentencesButton, 1, 2)
+
+        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 2, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 2, 1)
+        self.layout.addWidget(self.makeChunksFileSuffixLabel, 2, 2)
+        self.layout.addWidget(self.makeChunksFileSuffix, 2, 3)
+        self.layout.addWidget(self.makeChunksButton, 2, 4)
+
+    def getDataStats(self):
+        # characters:
+        self.curCharCount = len(self.findMainWindow().curData)
+        # words:
+        self.curWordCount = len(self.findMainWindow().curData.split())
+        # lines:
+        self.curLines = self.findMainWindow().curData.split('\n')
+        self.curLineCount = len(self.curLines)
+        # tokens:
+        self.tokens = encoder.encode(self.findMainWindow().curData)
+        self.tokenCount = len(self.tokens)
+
+        for token in self.tokens:
+            if token not in self.uniqueTokens:
+                self.uniqueTokens.append(token)
+            if token not in self.tokenDistribution.keys():
+                self.tokenDistribution[token] = 1
+            elif token in self.tokenDistribution.keys():
+                self.tokenDistribution[token] += 1
+
+        self.uniqueTokenCount = len(self.uniqueTokens)
+
+        self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
+        showTokenDistString = ''
+        for tokenFrequency in self.tokenDistribution[:10]:
+            for key, value in fixEncodes.items():
+                if value == tokenFrequency[0]:
+                    curToken = key
+            showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
+
+        # sentences:
+        sentenceEnders = ['.', '!', '?', ':']
+        rawSentencesMarked = self.findMainWindow().curData
+        for sentenceEnder in sentenceEnders:
+            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
+        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
+        # print(self.sentences)
+
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
+
+    def exportSentenceList(self):
+        """exports data split into sentences as JSON (array)"""
+        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
+            sentenceOutFile.write(json.dumps(self.sentences))
+
+    def exportChunks(self):
+        curTokenCount = 0  # current number of tokens in current chunk
+        curChunk = ""  # chunk text
+        chunkList = []  # list of properly sized chunks
+
+        for index in range(0, len(self.sentences)):
+            currentTokens = encoder.encode(self.sentences[index])
+
+            # print(f"\nChecking: {sentenceList[index]}")
+            # print(f"Number of tokens: {len(currentTokens)}")
+            # print(currentTokens)
+
+            curTokenCount += len(currentTokens)
+            # print(f"Number of tokens if current sentence would be added to current chunk: {curTokenCount}")
+
+            if curTokenCount > self.makeChunksFileTknsPerChunk.value():
+                # print("-> Hit chunk token cap! Starting new chunk...")
+                if curChunk[-1] == " ":
+                    curChunk = curChunk[:-1]
+                curChunk = curChunk.replace(" \n\n", "\n\n")
+                chunkList.append(curChunk)
+                curChunk = f"{self.sentences[index]} "
+                curTokenCount = len(currentTokens)
+            else:
+                # print("-> Still below chunk token cap.")
+                curChunk += f"{self.sentences[index]} "
+
+        if curChunk[-1] == " ":
+            curChunk = curChunk[:-1]
+        chunkList.append(curChunk)
+
+        # print(chunkList)
+        fullList = []
+        for chunk in chunkList:
+            fullList.append({'text': chunk, 'type': 'sourceText'})
+
+        """
+        if addEmptyPlayerInputs:
+            fullList = []
+
+            for chunk in chunkList:
+                fullList.append({'text': chunk, 'type': 'sourceText'})
+                fullList.append({'text': '> Do!', 'type': 'playerInput'})
+
+        else:
+            fullList = chunkList
+        """
+
+        chunkListJSON = json.dumps(fullList)
+        # print(chunkListJSON)
+
+        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
+            chunksOutFile.write(chunkListJSON)
+
+
+    def findMainWindow(self):
+        """helper method to conveniently get the MainWindow widget object"""
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+
 class ActionStack(QWidget):
     """
     A list of consecutive chunks in the form of ActionTextEdits
@@ -488,7 +659,7 @@ class ActionTextEdit(QWidget):
     Interactive widget holding a single chunk/action
 
     TODO:
-        -
+        - token threshold warnings...?
     """
     def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
         super(ActionTextEdit, self).__init__()

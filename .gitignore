@@ -7,6 +7,8 @@ ENV/
 env.bak/
 venv.bak/
 
+.idea/
+
 /chapter 1.txt
 /chapter 1 - Kopie.txt
 /chapter 1_fix.txt
