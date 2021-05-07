@@ -2,6 +2,7 @@
 Base module for the GUI
 
 TODO:
+    - chopping/chunking widget
 """
 
 import sys
@@ -39,7 +40,9 @@ class MainWindow(QMainWindow):
         self.setGeometry(1000, 1000, 800, 800)
         self.move(800, 50)
 
-        self._createMenu()
+        self.fileSelect()
+
+        # self._createMenu()
 
         self.curFileInfo = ''
         self.curFilePath = ''
@@ -52,7 +55,18 @@ class MainWindow(QMainWindow):
 
         # self._createStatusBar()
 
-        self.fileSelect()
+    def setMode(self, modeID):
+        # print(f'setMode called with {modeID}')
+        if modeID == 'ActionStack':
+            print('Set mode to ActionStack.')
+            curActionStack = ActionStack()
+            self.setCentralWidget(curActionStack)
+        if modeID == 'SourceInspector':
+            print('Set mode to SourceInspector.')
+            curSourceInspector = SourceInspector()
+            self.setCentralWidget(curSourceInspector)
+        if modeID == 'InitialPrep':
+            print('Set mode to InitialPrep.')
 
     def setModeActionStack(self):
         curActionStack = ActionStack()
@@ -66,19 +80,21 @@ class MainWindow(QMainWindow):
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
-        self.setWindowTitle(f'Gnurros FinetuneReformatter - {self.curFileName}')
+        self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         self.curFileType = self.curFilePath.split('.')[1]
         if self.curFileType == 'txt':
             print('Current file type is plaintext, allowing appropriate modes...')
-            self.allowedModes = ['inspectSource','initialPrep']
+            self.allowedModes = ['InitialPrep', 'SourceInspector']
             self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
-            self.setModeSourceInspector()
+            self.setMode('SourceInspector')
+            self._createMenu()
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
-            print(self.curData)
-            self.allowedModes = ['actionStack']
+            # print(self.curData)
+            self.allowedModes = ['ActionStack']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-            self.setModeActionStack()
+            self.setMode('ActionStack')
+            self._createMenu()
         else:
             print('File type of selected file is not compatible!')
 
@@ -90,10 +106,30 @@ class MainWindow(QMainWindow):
                 outData.write(self.curData)
 
     def _createMenu(self):
-        self.menu = self.menuBar().addMenu("&Menu")
-        self.menu.addAction('&Open', self.fileSelect)
-        self.menu.addAction('&Save', self.saveCurFile)
-        self.menu.addAction('&Exit', self.close)
+        self.topMenu = self.menuBar()
+        # clean up old menu and start fresh:
+        self.topMenu.clear()
+        # file menu:
+        self.menuFile = self.topMenu.addMenu("&File")
+        self.menuFile.addAction('&Open', self.fileSelect)
+        self.menuFile.addAction('&Save', self.saveCurFile)
+        self.menuFile.addAction('&Exit', self.close)
+        # if there are multiple allowed modes:
+        if len(self.allowedModes) > 1:
+            # add the mode menu
+            self.menuMode = self.topMenu.addMenu('&Mode')
+            # go through the allowed modes and add a menu option for each
+            for allowedMode in self.allowedModes:
+                """tried many more dynamic approaches, but none worked, so this is done explicitly for each mode..."""
+
+                if allowedMode == 'InitialPrep':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('InitialPrep'))
+
+                if allowedMode == 'SourceInspector':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('SourceInspector'))
+
+                if allowedMode == 'ActionStack':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ActionStack'))
 
     def _createToolbar(self):
         tools = QToolBar()
@@ -454,7 +490,7 @@ class ActionTextEdit(QWidget):
     TODO:
         -
     """
-    def __init__(self, actionID=0, actionContent={'text': 'Action content text...', 'type': 'generic'}):
+    def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
         super(ActionTextEdit, self).__init__()
 
         self.actionID = actionID
@@ -485,17 +521,17 @@ class ActionTextEdit(QWidget):
         self.advancedMenu.setMenu(QMenu(self.advancedMenu))
 
         topSpliceAction = QWidgetAction(self.advancedMenu)
-        topSpliceAction.setText('Add action above.')
+        topSpliceAction.setText('Add chunk above.')
         topSpliceAction.triggered.connect(self.spliceAbove)
         self.advancedMenu.menu().addAction(topSpliceAction)
 
         bottomSpliceAction = QWidgetAction(self.advancedMenu)
-        bottomSpliceAction.setText('Add action below.')
+        bottomSpliceAction.setText('Add chunk below.')
         bottomSpliceAction.triggered.connect(self.spliceBelow)
         self.advancedMenu.menu().addAction(bottomSpliceAction)
 
         self.editTypeAction = QWidgetAction(self.advancedMenu)
-        self.editTypeAction.setText('Edit action type.')
+        self.editTypeAction.setText('Edit chunk type.')
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
 
