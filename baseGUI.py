@@ -483,25 +483,38 @@ class InitialPrep(QWidget):
         self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
         self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
 
+        self.tokenizeButton = QPushButton('Tokenize data')
+        self.tokenizeButton.clicked.connect(self.tokenizeData)
+
+        self.tokenDistributionButton = QPushButton('Calculate token distribution')
+        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
+
+        self.miscPrepLabel = QLabel('Miscellaneous small fixes:')
+
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
 
         self.getDataStats()
 
-        self.layout.addWidget(self.dataStatsLabel, 0, 0)
-        self.layout.addWidget(self.tokenDistLabel, 0, 1)
+        self.layout.addWidget(self.tokenizeButton, 0, 0)
+        self.layout.addWidget(self.tokenDistributionButton, 0, 1)
 
-        self.layout.addWidget(self.chopSentencesFileSuffixLabel, 1, 0)
-        self.layout.addWidget(self.chopSentencesFileSuffix, 1, 1)
-        self.layout.addWidget(self.chopSentencesButton, 1, 2)
+        self.layout.addWidget(self.dataStatsLabel, 1, 0)
+        self.layout.addWidget(self.tokenDistLabel, 1, 1)
 
-        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 2, 0)
-        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 2, 1)
-        self.layout.addWidget(self.makeChunksFileSuffixLabel, 2, 2)
-        self.layout.addWidget(self.makeChunksFileSuffix, 2, 3)
-        self.layout.addWidget(self.makeChunksButton, 2, 4)
+        self.layout.addWidget(self.chopSentencesFileSuffixLabel, 2, 0)
+        self.layout.addWidget(self.chopSentencesFileSuffix, 2, 1)
+        self.layout.addWidget(self.chopSentencesButton, 2, 2)
 
-        self.layout.addWidget(self.lineEndSpaceRemoveButton, 3, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 3, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 3, 1)
+        self.layout.addWidget(self.makeChunksFileSuffixLabel, 3, 2)
+        self.layout.addWidget(self.makeChunksFileSuffix, 3, 3)
+        self.layout.addWidget(self.makeChunksButton, 3, 4)
+
+        self.layout.addWidget(self.miscPrepLabel, 4, 0)
+
+        self.layout.addWidget(self.lineEndSpaceRemoveButton, 5, 0)
 
     def getDataStats(self):
         # characters:
@@ -511,10 +524,34 @@ class InitialPrep(QWidget):
         # lines:
         self.curLines = self.findMainWindow().curData.split('\n')
         self.curLineCount = len(self.curLines)
-        # tokens:
+        # sentences:
+        sentenceEnders = ['.', '!', '?', ':']
+        rawSentencesMarked = self.findMainWindow().curData
+        for sentenceEnder in sentenceEnders:
+            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
+        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+    def tokenizeData(self):
         self.tokens = encoder.encode(self.findMainWindow().curData)
         self.tokenCount = len(self.tokens)
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
 
+    def calculateTokenDistribution(self):
         for token in self.tokens:
             if token not in self.uniqueTokens:
                 self.uniqueTokens.append(token)
@@ -533,13 +570,7 @@ class InitialPrep(QWidget):
                     curToken = key
             showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
 
-        # sentences:
-        sentenceEnders = ['.', '!', '?', ':']
-        rawSentencesMarked = self.findMainWindow().curData
-        for sentenceEnder in sentenceEnders:
-            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
-        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
-        # print(self.sentences)
+        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
 
         # put it all together and display:
         self.dataStatsLabel.setText(f'Stats:\n'
@@ -549,8 +580,6 @@ class InitialPrep(QWidget):
                                     f'Number of sentences (approximately): {len(self.sentences)}\n'
                                     f'Number of tokens: {self.tokenCount}\n'
                                     f'Number of unique tokens: {self.uniqueTokenCount}')
-
-        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
