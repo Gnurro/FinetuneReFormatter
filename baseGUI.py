@@ -441,8 +441,6 @@ class InitialPrep(QWidget):
     """
     Utility mode to check raw data statistics and perform simple data preparation
 
-    TODO:
-        - add dummy player input option
     """
     def __init__(self):
         super(InitialPrep, self).__init__()
