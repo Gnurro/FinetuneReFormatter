@@ -30,7 +30,7 @@ Check how a text is split into tokens, and explore the 'token dictionary' to fin
 ### Info:
 Written in Python 3.9  
 GUI uses PyQt5  
-Requirements supplied as venv. (Subject to change.)  
+Install requirements by running pip (or equivalent) with requirements.txt  
 
 ### Credits:
 GPT2 encoder from https://github.com/graykode/gpt-2-Pytorch  
