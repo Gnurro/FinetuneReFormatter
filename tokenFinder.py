@@ -6,7 +6,7 @@ import tokensToUTF
 import re
 
 # (raw) string to be regExed for search:
-checkStr = ' phone'
+checkStr = '>'
 
 printList = False # list output in console
 printDiscord = True # console output with Discord codeblock delimiters

@@ -2,9 +2,8 @@
 Base module for the GUI
 
 TODO:
-    - intro screen
+    - intro screen?
         - with progress display on opening/tokenizing
-    - make tokenization optional to prevent large files from locking it up
 """
 
 import sys
@@ -35,7 +34,6 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO: modes!
-        -> prep mode for raw data
         -> token explorer
     TODO: settings
     """
@@ -53,7 +51,10 @@ class MainWindow(QMainWindow):
         self.allowedModes = []
         self.curData = ''
 
-        self.fileSelect()
+        InitialIntroScreen = IntroScreen()
+        self.setCentralWidget(InitialIntroScreen)
+
+        # self.fileSelect()
 
         # self._createToolbar()
 
@@ -816,6 +817,80 @@ class ActionTextEdit(QWidget):
 
     def updateType(self):
         self.findMainWindow().curData[self.actionID]['type'] = self.typeField.text()
+
+
+class IntroScreen(QWidget):
+    def __init__(self):
+        super(IntroScreen, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.headLineLabel = QLabel('<h1><b>Gnurros Finetune-ReFormatter</h1></b>')
+
+        self.openFileButton = QPushButton('Open File')
+        self.openFileButton.clicked.connect(self.openFile)
+
+        self.exploreTokensButton = QPushButton('Explore tokens')
+        self.exploreTokensButton.clicked.connect(self.toTokenExplorer)
+
+        self.layout.addWidget(self.headLineLabel, 0, 0)
+        self.layout.addWidget(self.openFileButton, 1, 0)
+        self.layout.addWidget(self.exploreTokensButton, 2, 0)
+
+    def openFile(self):
+        self.findMainWindow().fileSelect()
+
+    def toTokenExplorer(self):
+        curTokenExplorer = TokenExplorer()
+        self.findMainWindow().setCentralWidget(curTokenExplorer)
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class TokenExplorer(QWidget):
+    def __init__(self):
+        super(TokenExplorer, self).__init__()
+
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+
+        self.testStringLabel = QLabel('String to check:')
+        self.testString = QLineEdit()
+
+        self.checkButton = QPushButton('Find tokens containing string')
+        self.checkButton.clicked.connect(self.tokenCheck)
+
+        self.outputText = QTextEdit()
+        self.outputText.setReadOnly(True)
+
+        self.layout.addWidget(self.testStringLabel, 0, 0)
+        self.layout.addWidget(self.testString, 0, 1)
+        self.layout.addWidget(self.checkButton, 0, 2)
+
+        self.layout.addWidget(self.outputText, 1, 0, 1, 3)
+
+    def tokenCheck(self):
+        catchList = []
+        checkExpression = re.compile(f'.*{self.testString.text()}.*')
+
+        for key, value in fixEncodes.items():
+            matchedExpression = checkExpression.match(key)
+            if matchedExpression:
+                catchList.append(key)
+
+        self.outputText.setText('|'.join(catchList))
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
 
 
 if __name__ == '__main__':
