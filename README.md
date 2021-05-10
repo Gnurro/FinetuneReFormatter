@@ -8,11 +8,14 @@ Select a file to inspect/edit. Currently works on .txt UTF-8 plaintext files.
 
 Selecting a .txt plaintext file opens it in SourceInspector mode, which is intended to help with spotting some common formatting issues in finetune data texts:  
 - badly positioned newline characters
-  - two different modes with different restrictiveness:
+  - three different modes with different restrictiveness:
     - LineEnd mode checks for lines ending in anything but a small set of 'sentence-ending' characters
     - InLine mode checks for lines that contain no 'sentence-ending' characters
+    - NoDoubles mode checks for empty lines to find double newlines (or any number of stacked newlines)
   - trailing newline at document end
 - missing EOT
+
+The InitialPrep mode for plaintext .txt files contains a compact view of various data statistics, as well as splitting of the data into .json files containing either separated sentences as a list/array or a chunklist including metadata for rolling context preparation.  
 
 More in-depth editing of rolling-context-targeted data in the form of .json files is highly WIP, but can be previewed by selecting/opening an appropriately formatted .json file.   
 
