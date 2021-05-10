@@ -442,7 +442,6 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
-        - make tokenization on-demand
         - add dummy player input option
     """
     def __init__(self):
@@ -464,32 +463,49 @@ class InitialPrep(QWidget):
 
         self.dataStatsLabel = QLabel('Stats:')
         self.dataStatsLabel.setAlignment(Qt.AlignTop)
-        self.tokenDistLabel = QLabel('Token distribution:')
 
         self.sentenceEndPlaceholder = '%%%%%'  # hope this thing doesn't show up in any data...
         self.sentences = []
+
+        self.tokenizeButton = QPushButton('Tokenize data')
+        self.tokenizeButton.clicked.connect(self.tokenizeData)
+
+        self.tokenDistLabel = QLabel('Token distribution:')
+        self.tokenDistributionButton = QPushButton('Calculate token distribution')
+        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
 
         self.chopSentencesButton = QPushButton('Split into sentences and save')
         self.chopSentencesButton.clicked.connect(self.exportSentenceList)
         self.chopSentencesFileSuffixLabel = QLabel('Sentence file suffix:')
         self.chopSentencesFileSuffix = QLineEdit('_sentences')
 
-        self.makeChunksButton = QPushButton('Create chunks and save')
-        self.makeChunksButton.clicked.connect(self.exportChunks)
-        self.makeChunksFileSuffixLabel = QLabel('Chunk file suffix: _(tokens/chunk)')
-        self.makeChunksFileSuffix = QLineEdit('tknChunks')
+        # chunking:
+        self.makeChunksHeaderLabel = QLabel('<b>Chunking:</b>')
         self.makeChunksFileTknsPerChunkLabel = QLabel('Maximum tokens per chunk:')
         self.makeChunksFileTknsPerChunk = QSpinBox()
+        self.makeChunksFileTknsPerChunk.editingFinished.connect(self.updateTokensPerChunk)
         self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
         self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
+        # placeholder chunks insertion:
+        self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
+        # placeholder chunk interval:
+        # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
+        # self.makeChunksFileInsertsInterval = QSpinBox()
+        # self.makeChunksFileInsertsInterval.setMinimum(2)
+        # placeholder chunk metadata type:
+        self.makeChunksFileInsertsTypeLabel = QLabel('Placeholder type tag:')
+        self.makeChunksFileInsertsType = QLineEdit('generic')
+        self.makeChunksFileInsertsType.setMaxLength(12)
+        # placeholder chunk placeholder text:
+        self.makeChunksFileInsertsTextLabel = QLabel('Placeholder text:')
+        self.makeChunksFileInsertsText = QLineEdit('PLACEHOLDER')
+        # chunk file export:
+        self.makeChunksFileSuffixLabel = QLabel(f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}')
+        self.makeChunksFileSuffix = QLineEdit('tknChunks')
+        self.makeChunksButton = QPushButton('Create chunks and save')
+        self.makeChunksButton.clicked.connect(self.exportChunks)
 
-        self.tokenizeButton = QPushButton('Tokenize data')
-        self.tokenizeButton.clicked.connect(self.tokenizeData)
-
-        self.tokenDistributionButton = QPushButton('Calculate token distribution')
-        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
-
-        self.miscPrepLabel = QLabel('Miscellaneous small fixes:')
+        self.miscPrepLabel = QLabel('<b>Miscellaneous small fixes:</b>')
 
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
@@ -506,15 +522,24 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.chopSentencesFileSuffix, 2, 1)
         self.layout.addWidget(self.chopSentencesButton, 2, 2)
 
-        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 3, 0)
-        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 3, 1)
-        self.layout.addWidget(self.makeChunksFileSuffixLabel, 3, 2)
-        self.layout.addWidget(self.makeChunksFileSuffix, 3, 3)
-        self.layout.addWidget(self.makeChunksButton, 3, 4)
+        self.layout.addWidget(self.makeChunksHeaderLabel, 3, 0)
 
-        self.layout.addWidget(self.miscPrepLabel, 4, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 4, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 4, 1)
 
-        self.layout.addWidget(self.lineEndSpaceRemoveButton, 5, 0)
+        self.layout.addWidget(self.makeChunksFileInsertsCheckbox, 5, 0)
+        self.layout.addWidget(self.makeChunksFileInsertsTypeLabel, 5, 1)
+        self.layout.addWidget(self.makeChunksFileInsertsType, 5, 2)
+        self.layout.addWidget(self.makeChunksFileInsertsTextLabel, 5, 3)
+        self.layout.addWidget(self.makeChunksFileInsertsText, 5, 4)
+
+        self.layout.addWidget(self.makeChunksFileSuffixLabel, 6, 0)
+        self.layout.addWidget(self.makeChunksFileSuffix, 6, 1)
+        self.layout.addWidget(self.makeChunksButton, 6, 2)
+
+        self.layout.addWidget(self.miscPrepLabel, 7, 0)
+
+        self.layout.addWidget(self.lineEndSpaceRemoveButton, 8, 0)
 
     def getDataStats(self):
         # characters:
@@ -619,26 +644,23 @@ class InitialPrep(QWidget):
 
         # print(chunkList)
         fullList = []
-        for chunk in chunkList:
-            fullList.append({'text': chunk, 'type': 'sourceText'})
 
-        """
-        if addEmptyPlayerInputs:
-            fullList = []
-
+        if self.makeChunksFileInsertsCheckbox.isChecked():
             for chunk in chunkList:
                 fullList.append({'text': chunk, 'type': 'sourceText'})
-                fullList.append({'text': '> Do!', 'type': 'playerInput'})
-
+                fullList.append({'text': self.makeChunksFileInsertsText.text(), 'type': self.makeChunksFileInsertsType.text()})
         else:
-            fullList = chunkList
-        """
+            for chunk in chunkList:
+                fullList.append({'text': chunk, 'type': 'sourceText'})
 
         chunkListJSON = json.dumps(fullList)
         # print(chunkListJSON)
 
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
             chunksOutFile.write(chunkListJSON)
+
+    def updateTokensPerChunk(self):
+        self.makeChunksFileSuffixLabel.setText(f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}')
 
     def lineEndSpaceRemove(self):
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
