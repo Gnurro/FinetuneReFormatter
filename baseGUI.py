@@ -2,8 +2,7 @@
 Base module for the GUI
 
 TODO:
-    - intro screen?
-        - with progress display on opening/tokenizing
+   - ChunkMasher mode to mash chunky rolling context into solid form
 """
 
 import sys
@@ -33,8 +32,6 @@ class MainWindow(QMainWindow):
     """
     Main window, holding all the top-level things
 
-    TODO: modes!
-        -> token explorer
     TODO: settings
     """
     def __init__(self, parent=None):
@@ -66,6 +63,10 @@ class MainWindow(QMainWindow):
             print('Set mode to ActionStack.')
             curActionStack = ActionStack()
             self.setCentralWidget(curActionStack)
+        if modeID == 'ChunkCombiner':
+            print('Set mode to ChunkCombiner.')
+            curChunkCombiner = ChunkCombiner()
+            self.setCentralWidget(curChunkCombiner)
         if modeID == 'SourceInspector':
             print('Set mode to SourceInspector.')
             curSourceInspector = SourceInspector()
@@ -91,9 +92,9 @@ class MainWindow(QMainWindow):
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
             # print(self.curData)
-            self.allowedModes = ['ActionStack']
+            self.allowedModes = ['ActionStack', 'ChunkCombiner']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-            self.setMode('ActionStack')
+            self.setMode('ChunkCombiner')
             self._createMenu()
         else:
             print('File type of selected file is not compatible!')
@@ -131,6 +132,9 @@ class MainWindow(QMainWindow):
                 if allowedMode == 'ActionStack':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('ActionStack'))
 
+                if allowedMode == 'ChunkCombiner':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkCombiner'))
+
     def _createToolbar(self):
         tools = QToolBar()
         self.addToolBar(tools)
@@ -140,6 +144,40 @@ class MainWindow(QMainWindow):
         status = QStatusBar()
         status.showMessage('Nothing to tell yet...')
         self.setStatusBar(status)
+
+
+class IntroScreen(QWidget):
+    def __init__(self):
+        super(IntroScreen, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.headLineLabel = QLabel('<h1><b>Gnurros Finetune-ReFormatter</h1></b>')
+
+        self.openFileButton = QPushButton('Open File')
+        self.openFileButton.clicked.connect(self.openFile)
+
+        self.exploreTokensButton = QPushButton('Explore tokens')
+        self.exploreTokensButton.clicked.connect(self.toTokenExplorer)
+
+        self.layout.addWidget(self.headLineLabel, 0, 0)
+        self.layout.addWidget(self.openFileButton, 1, 0)
+        self.layout.addWidget(self.exploreTokensButton, 2, 0)
+
+    def openFile(self):
+        self.findMainWindow().fileSelect()
+
+    def toTokenExplorer(self):
+        curTokenExplorer = TokenExplorer()
+        self.findMainWindow().setCentralWidget(curTokenExplorer)
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
 
 
 class SourceInspector(QWidget):
@@ -253,7 +291,6 @@ class SourceInspector(QWidget):
             else:
                 if self.newlineMode == 'NoDoubles':
                     lineIsFine = True
-
             # handle lines depending on the substring they end with:
             if self.newlineMode == 'LineEnd':
                 for lineEnder in lineEnders:
@@ -283,8 +320,10 @@ class SourceInspector(QWidget):
         """move the text cursor to the first bad newline and focus the text field"""
         # ...but only if there are any:
         if len(self.badLineList) > 0:
+            print(f'found badLineList with content: {self.badLineList}')
             # get the string position of the first bad newline:
             curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[0]]
+            print(f'got text index of first badLine: {curBadLineTextIndex}')
             # put the text cursor there:
             self.setTextCursorPosition(curBadLineTextIndex)
             # focus on the text field so the cursor isn't placed somewhere else by manual mouseclick focus:
@@ -292,7 +331,8 @@ class SourceInspector(QWidget):
 
     def getLineStringIndexList(self):
         """returns list of text string indexes of the start of lines"""
-        return [match.start() for match in re.finditer('\n', self.textField.toPlainText())]
+        print('trying to get line text indexes')
+        return [match.start() for match in re.finditer("\n", self.textField.toPlainText())]
 
     def getTextCursor(self):
         """returns the current text cursor object"""
@@ -652,11 +692,15 @@ class InitialPrep(QWidget):
             for chunk in chunkList:
                 fullList.append({'text': chunk, 'type': 'sourceText'})
 
-        chunkListJSON = json.dumps(fullList)
+        # chunkListJSON = json.dumps(fullList)
         # print(chunkListJSON)
 
+        fullData = {'projectData': {'targetTknsPerChunk': self.makeChunksFileTknsPerChunk.value(), 'tagTypeData': {}}, 'chunks': fullList}
+        fullDataJSON = json.dumps(fullData)
+
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
-            chunksOutFile.write(chunkListJSON)
+            # chunksOutFile.write(chunkListJSON)
+            chunksOutFile.write(fullDataJSON)
 
     def updateTokensPerChunk(self):
         self.makeChunksFileSuffixLabel.setText(f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}')
@@ -681,14 +725,14 @@ class ActionStack(QWidget):
     def __init__(self, startIndex=0, actionAmount=6):
         super(ActionStack, self).__init__()
 
-        self.startIndex = startIndex
-        self.actionAmount = actionAmount
-
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
+        self.startIndex = startIndex
+        self.actionAmount = actionAmount
+
         self.startIndexSpinBox = QSpinBox()
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData)-actionAmount)
+        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-actionAmount)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
 
         self.layout.addWidget(self.startIndexSpinBox)
@@ -696,11 +740,11 @@ class ActionStack(QWidget):
         self.fillStack()
 
     def fillStack(self):
-        # print('Trying to clear ActionStack..')
+        print('Trying to clear ActionStack..')
         self.clearStack()
-        # print('Filling ActionStack...')
+        print('Filling ActionStack...')
         for actionTextIndex in range(self.startIndex, self.startIndex + self.actionAmount):
-            self.layout.addWidget(ActionTextEdit(actionID=actionTextIndex, actionContent=self.findMainWindow().curData[actionTextIndex]))
+            self.layout.addWidget(ActionTextEdit(actionID=actionTextIndex, actionContent=self.findMainWindow().curData['chunks'][actionTextIndex]))
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
@@ -797,14 +841,14 @@ class ActionTextEdit(QWidget):
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        self.findMainWindow().curData[self.actionID]['text'] = self.textField.toPlainText()
+        self.findMainWindow().curData['chunks'][self.actionID]['text'] = self.textField.toPlainText()
 
     def spliceAbove(self):
-        self.findMainWindow().curData.insert(self.actionID-1, {'text': 'Action content text...', 'type': 'generic'})
+        self.findMainWindow().curData['chunks'].insert(self.actionID-1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def spliceBelow(self):
-        self.findMainWindow().curData.insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
+        self.findMainWindow().curData['chunks'].insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def editActionType(self):
@@ -816,41 +860,7 @@ class ActionTextEdit(QWidget):
             self.editTypeAction.setText('Edit action type.')
 
     def updateType(self):
-        self.findMainWindow().curData[self.actionID]['type'] = self.typeField.text()
-
-
-class IntroScreen(QWidget):
-    def __init__(self):
-        super(IntroScreen, self).__init__()
-
-        self.layout = QGridLayout()
-        self.layout.setAlignment(Qt.AlignTop)
-        self.setLayout(self.layout)
-
-        self.headLineLabel = QLabel('<h1><b>Gnurros Finetune-ReFormatter</h1></b>')
-
-        self.openFileButton = QPushButton('Open File')
-        self.openFileButton.clicked.connect(self.openFile)
-
-        self.exploreTokensButton = QPushButton('Explore tokens')
-        self.exploreTokensButton.clicked.connect(self.toTokenExplorer)
-
-        self.layout.addWidget(self.headLineLabel, 0, 0)
-        self.layout.addWidget(self.openFileButton, 1, 0)
-        self.layout.addWidget(self.exploreTokensButton, 2, 0)
-
-    def openFile(self):
-        self.findMainWindow().fileSelect()
-
-    def toTokenExplorer(self):
-        curTokenExplorer = TokenExplorer()
-        self.findMainWindow().setCentralWidget(curTokenExplorer)
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
+        self.findMainWindow().curData['chunks'][self.actionID]['type'] = self.typeField.text()
 
 
 class TokenExplorer(QWidget):
@@ -885,6 +895,217 @@ class TokenExplorer(QWidget):
                 catchList.append(key)
 
         self.outputText.setText('|'.join(catchList))
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class ChunkCombiner(QWidget):
+    """
+    Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
+
+    TODO:
+        - fix 'unsaved' notice
+            - fix layout insanity
+                - make tagTypeHandler widget class
+                - make tagTypeStack class?
+    """
+    def __init__(self):
+        super(ChunkCombiner, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.chunkAmount = len(self.findMainWindow().curData['chunks'])
+        self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
+
+        chunkTagsList = [chunk['type'] for chunk in self.findMainWindow().curData['chunks']]
+        self.tagTypes = list(set(chunkTagsList))
+        self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
+        tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
+        self.tagTypesLabel = QLabel(f'Tag types (amount): {", ".join(tagTypeCounts)}')
+
+        self.saveTagTypeDataButton = QPushButton('Save type handling data')
+        self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
+
+        self.fileSuffixLabel = QLabel('Combined file suffix:')
+        self.fileSuffix = QLineEdit('_combined')
+
+        self.combineExportButton = QPushButton('Export combined chunks')
+        self.combineExportButton.clicked.connect(self.combineExport)
+
+        self.tagTypeData = {}
+        if 'tagTypeData' in self.findMainWindow().curData['projectData'].keys():
+            self.tagTypeData = self.findMainWindow().curData['projectData']['tagTypeData']
+        print(f'tagTypeData: {self.tagTypeData}')
+
+        self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
+
+        self.tagTypeStack = QVBoxLayout()
+        self.fillTagTypeStack()
+
+        self.tagTypeStackHolder = QWidget()
+        self.tagTypeStackHolder.setLayout(self.tagTypeStack)
+
+        self.layout.addWidget(self.chunkAmountLabel, 0, 0)
+        self.layout.addWidget(self.tagTypesLabel, 0, 1)
+        self.layout.addWidget(self.saveTagTypeDataButton, 0, 2)
+
+        self.layout.addWidget(self.fileSuffixLabel, 1, 0)
+        self.layout.addWidget(self.fileSuffix, 1, 1)
+        self.layout.addWidget(self.combineExportButton, 1, 2)
+
+        self.layout.addWidget(self.tagTypeStackHeaderLabel, 2, 0)
+        # self.layout.addLayout(self.tagTypeStack, 3, 0, 1, 3)
+
+        # print(self.layout.count())
+
+        # print(self.layout.children()[0].children()[0].count())
+        # print(self.layout.children()[0].children()[0].itemAt(0).widget())
+
+    def fillTagTypeStack(self):
+        # self.layout.itemAt(self.layout.count()).widget().setParent(None)
+        if self.layout.count() > 0:
+            """
+            for index in range(self.layout.count()):
+                # print(self.layout.itemAt(index))
+                checkItem = self.layout.itemAt(index)
+                if self.layout.itemAt(index).layout():
+                    print(f'layout: {self.layout.itemAt(index).layout()}')
+                    self.layout.removeItem(checkItem)
+            # self.layout.removeItem(self.tagTypeStack)
+            # self.tagTypeStack.deleteLater()
+            """
+            """
+            # print(self.layout.count())
+            # print(self.layout.takeAt(8))
+            # print(self.layout.children())
+            # print(self.layout.children()[0].layout().children())
+            print(self.layout.children()[0].children())
+            print(self.layout.children()[0].count())
+            # print(self.layout.children()[0].children()[0])
+            for childChildIndex in range(0, self.layout.children()[0].count()):
+                print(self.layout.children()[0].children()[childChildIndex])
+                print(self.layout.children()[0].children()[childChildIndex].count())
+                for evenMoreStupidIterator in range(0, self.layout.children()[0].children()[childChildIndex].count()):
+                    print(self.layout.children()[0].children()[childChildIndex].itemAt(evenMoreStupidIterator))
+                    print(self.layout.children()[0].children()[childChildIndex].itemAt(evenMoreStupidIterator).widget())
+                    # print(self.layout.children()[0].children()[childChildIndex].itemAt(evenMoreStupidIterator).widget().text())
+                    self.layout.children()[0].children()[childChildIndex].itemAt(evenMoreStupidIterator).widget().deleteLater()
+                # self.layout.children()[0].children()[childChildIndex].layout().setParent(None)
+                # self.layout.children()[0].children()[childChildIndex].setParent(None)
+            # self.layout.children()[0].children()[0].deleteLater()
+            # self.layout.children()[0].children()[1].deleteLater()
+            # self.layout.children()[0].children()[2].deleteLater()
+            # self.layout.children()[0].layout().deleteLater()
+            # self.layout.children()[0].layout().removeItem(0)
+            """
+
+        self.tagTypeStack = QVBoxLayout()
+        for tagType in self.tagTypes:
+            tagTypeLayout = QGridLayout()
+
+            tagTypeIdLabel = QLabel(tagType)
+            tagTypeSaveWarnLabel = QLabel('')
+
+            tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
+            tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
+
+            tagTypePrefixLabel = QLabel('Prefix:')
+            tagTypePrefix = QLineEdit()
+
+            tagTypeSuffixLabel = QLabel('Suffix:')
+            tagTypeSuffix = QLineEdit()
+
+            if tagType in self.findMainWindow().curData['projectData']['tagTypeData'].keys():
+                if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][0]:
+                    tagTypeFrontNewlineCheckbox.setChecked(True)
+                if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][1]:
+                    tagTypeBackNewlineCheckbox.setChecked(True)
+                if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2]:
+                    tagTypePrefix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2])
+                if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3]:
+                    tagTypeSuffix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3])
+            # else:
+                # tagTypeSaveWarnLabel.setText('<b>(not saved)</b>')
+
+            tagTypeLayout.addWidget(tagTypeIdLabel, 0, 0)
+            tagTypeLayout.addWidget(tagTypeSaveWarnLabel, 0, 1)
+            tagTypeLayout.addWidget(tagTypeFrontNewlineCheckbox, 1, 0)
+            tagTypeLayout.addWidget(tagTypeBackNewlineCheckbox, 1, 1)
+            tagTypeLayout.addWidget(tagTypePrefixLabel, 2, 0)
+            tagTypeLayout.addWidget(tagTypePrefix, 2, 1)
+            tagTypeLayout.addWidget(tagTypeSuffixLabel, 3, 0)
+            tagTypeLayout.addWidget(tagTypeSuffix, 3, 1)
+
+            self.tagTypeStack.addLayout(tagTypeLayout)
+
+        self.layout.addLayout(self.tagTypeStack, 3, 0, 1, 3)
+        # self.layout.update()
+
+    def getTagTypeStackItems(self):
+        print(f'{self.layout.children()[0].count()} tagTypes in stack')
+        # print(self.layout.children()[0].children())
+        for index in range(self.layout.children()[0].count()):
+            tagID = self.layout.children()[0].children()[index].itemAt(0).widget().text()
+            # print(tagID)
+            tagPreNewlineBool = self.layout.children()[0].children()[index].itemAt(2).widget().isChecked()
+            # print(tagPreNewlineBool)
+            tagPostNewlineBool = self.layout.children()[0].children()[index].itemAt(3).widget().isChecked()
+            # print(tagPostNewlineBool)
+            tagPrefix = self.layout.children()[0].children()[index].itemAt(5).widget().text()
+            # print(tagPrefix)
+            tagSuffix = self.layout.children()[0].children()[index].itemAt(7).widget().text()
+            # print(tagSuffix)
+
+            self.tagTypeData[tagID] = [tagPreNewlineBool, tagPostNewlineBool, tagPrefix, tagSuffix]
+            # print(self.tagTypeData)
+
+        print(self.tagTypeData)
+
+    def saveTagTypeData(self):
+        print('saving tag type data')
+        self.getTagTypeStackItems()
+        self.findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
+        with open(f'{self.findMainWindow().curFilePath}', 'w', encoding='utf-8') as chunksOutFile:
+            fullDataJSON = json.dumps(self.findMainWindow().curData)
+            # chunksOutFile.write(chunkListJSON)
+            chunksOutFile.write(fullDataJSON)
+        # self.fillTagTypeStack()
+
+    def combineExport(self):
+        self.getTagTypeStackItems()
+        # chunkTextsList = [chunk['text'] for chunk in self.findMainWindow().curData]
+        chunkTextsList = []
+        for chunkIndex in range(len(self.findMainWindow().curData['chunks'])):
+            chunkText = self.findMainWindow().curData['chunks'][chunkIndex]['text']
+            # print(chunkText)
+            # add prefix:
+            # print(self.tagTypeData[self.findMainWindow().curData[chunkIndex]['type']][2])
+            chunkText = self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][2] + chunkText
+            # add suffix:
+            chunkText += self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][3]
+            # check for newline adding to start of chunk text:
+            # print(f'Type: {self.findMainWindow().curData[chunkIndex]["type"]}, add nl: {self.tagTypeData[self.findMainWindow().curData[chunkIndex]["type"]][0]}')
+            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][0]:
+                chunkText = '\n' + chunkText
+            # check for newline adding to end of chunk text:
+            # print(self.tagTypeData[self.findMainWindow().curData[chunkIndex]['type']][1])
+            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][1]:
+                chunkText += '\n'
+            # print(chunkText)
+
+            chunkTextsList.append(chunkText)
+
+        combinedString = ''.join(chunkTextsList)
+        print(combinedString)
+
+        with open(f'{self.findMainWindow().curFilePath.replace(".json", "")}{self.fileSuffix.text()}.txt', 'w', encoding='utf-8') as combinedChunksFile:
+            combinedChunksFile.write(combinedString)
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
