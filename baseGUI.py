@@ -948,8 +948,8 @@ class ChunkCombiner(QWidget):
         self.tagTypeStack = QVBoxLayout()
         self.fillTagTypeStack()
 
-        self.tagTypeStackHolder = QWidget()
-        self.tagTypeStackHolder.setLayout(self.tagTypeStack)
+        # self.tagTypeStackHolder = QWidget()
+        # self.tagTypeStackHolder.setLayout(self.tagTypeStack)
 
         self.layout.addWidget(self.chunkAmountLabel, 0, 0)
         self.layout.addWidget(self.tagTypesLabel, 0, 1)
@@ -960,7 +960,7 @@ class ChunkCombiner(QWidget):
         self.layout.addWidget(self.combineExportButton, 1, 2)
 
         self.layout.addWidget(self.tagTypeStackHeaderLabel, 2, 0)
-        # self.layout.addLayout(self.tagTypeStack, 3, 0, 1, 3)
+        self.layout.addLayout(self.tagTypeStack, 3, 0, 1, 3)
 
         # print(self.layout.count())
 
@@ -969,8 +969,9 @@ class ChunkCombiner(QWidget):
 
     def fillTagTypeStack(self):
         # self.layout.itemAt(self.layout.count()).widget().setParent(None)
+        """
         if self.layout.count() > 0:
-            """
+
             for index in range(self.layout.count()):
                 # print(self.layout.itemAt(index))
                 checkItem = self.layout.itemAt(index)
@@ -979,8 +980,8 @@ class ChunkCombiner(QWidget):
                     self.layout.removeItem(checkItem)
             # self.layout.removeItem(self.tagTypeStack)
             # self.tagTypeStack.deleteLater()
-            """
-            """
+
+
             # print(self.layout.count())
             # print(self.layout.takeAt(8))
             # print(self.layout.children())
@@ -1003,8 +1004,8 @@ class ChunkCombiner(QWidget):
             # self.layout.children()[0].children()[2].deleteLater()
             # self.layout.children()[0].layout().deleteLater()
             # self.layout.children()[0].layout().removeItem(0)
-            """
 
+        """
         self.tagTypeStack = QVBoxLayout()
         for tagType in self.tagTypes:
             tagTypeLayout = QGridLayout()
@@ -1075,7 +1076,7 @@ class ChunkCombiner(QWidget):
             fullDataJSON = json.dumps(self.findMainWindow().curData)
             # chunksOutFile.write(chunkListJSON)
             chunksOutFile.write(fullDataJSON)
-        # self.fillTagTypeStack()
+        self.fillTagTypeStack()
 
     def combineExport(self):
         self.getTagTypeStackItems()
