@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
             # print(self.curData)
             self.allowedModes = ['ActionStack', 'ChunkCombiner']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-            self.setMode('ChunkCombiner')
+            self.setMode('ActionStack')
             self._createMenu()
         else:
             print('File type of selected file is not compatible!')
