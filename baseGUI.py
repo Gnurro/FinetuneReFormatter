@@ -669,19 +669,34 @@ class InitialPrep(QWidget):
                 # print("-> Hit chunk token cap! Starting new chunk...")
                 if curChunk[-1] == " ":
                     curChunk = curChunk[:-1]
+                if curChunk[0] == " ":
+                    curChunk = curChunk[1:]
                 curChunk = curChunk.replace(" \n\n", "\n\n")
+                curChunk = curChunk.replace("  ", " ")
                 chunkList.append(curChunk)
+                # curChunk = f"{self.sentences[index]} "
                 curChunk = f"{self.sentences[index]} "
                 curTokenCount = len(currentTokens)
             else:
                 # print("-> Still below chunk token cap.")
+                # curChunk += f"{self.sentences[index]} "
                 curChunk += f"{self.sentences[index]} "
 
         if curChunk[-1] == " ":
             curChunk = curChunk[:-1]
+
         chunkList.append(curChunk)
 
+
+        # for chunk in chunkList:
+            # print(f'{chunk}///\n')
+            # if chunk[0] == " ":
+                # print('woop!')
+                # chunk = chunk[0:]
+
+
         # print(chunkList)
+
         fullList = []
 
         if self.makeChunksFileInsertsCheckbox.isChecked():
@@ -1076,7 +1091,7 @@ class ChunkCombiner(QWidget):
             fullDataJSON = json.dumps(self.findMainWindow().curData)
             # chunksOutFile.write(chunkListJSON)
             chunksOutFile.write(fullDataJSON)
-        self.fillTagTypeStack()
+        # self.fillTagTypeStack()
 
     def combineExport(self):
         self.getTagTypeStackItems()
