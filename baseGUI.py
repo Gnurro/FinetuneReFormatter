@@ -841,7 +841,7 @@ class InitialPrep(QWidget):
 
 class ChunkStack(QWidget):
     """
-    A list of consecutive chunks in the form of ActionTextEdits
+    A list of consecutive chunks in the form of ChunkTextEdits
 
     TODO:
         - make navigation more convenient
@@ -850,13 +850,13 @@ class ChunkStack(QWidget):
         - make this cover the approximate context window
             - make chunk widgets more compact
             - calculate total tokens in displayed chunks
-            - apply fitting actionAmount
+            - apply fitting chunkAmount
         - settings:
-            - actionAmount/chunkAmount hard setting
+            - chunkAmount hard setting
             - toggle for context-window auto-sizing
         - rename class/mode to ChunkStack
     """
-    def __init__(self, startIndex=0, actionAmount=6):
+    def __init__(self, startIndex=0, chunkAmount=6):
         super(ChunkStack, self).__init__()
 
         self.layout = QVBoxLayout()
@@ -864,10 +864,10 @@ class ChunkStack(QWidget):
         # initial view position:
         # TODO: give this project persistence?
         self.startIndex = startIndex
-        self.actionAmount = actionAmount
+        self.chunkAmount = chunkAmount
         # change view position:
         self.startIndexSpinBox = QSpinBox()
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-actionAmount)
+        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-chunkAmount)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
 
         self.layout.addWidget(self.startIndexSpinBox)
@@ -879,8 +879,8 @@ class ChunkStack(QWidget):
         print('Trying to clear ChunkStack..')
         self.clearStack()
         print('Filling ChunkStack...')
-        for actionTextIndex in range(self.startIndex, self.startIndex + self.actionAmount):
-            self.layout.addWidget(ActionTextEdit(actionID=actionTextIndex, actionContent=self.findMainWindow().curData['chunks'][actionTextIndex]))
+        for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
+            self.layout.addWidget(ChunkTextEdit(actionID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
@@ -900,7 +900,7 @@ class ChunkStack(QWidget):
         self.fillStack()
 
 
-class ActionTextEdit(QWidget):
+class ChunkTextEdit(QWidget):
     """
     Interactive widget holding a single chunk/action
 
@@ -914,7 +914,7 @@ class ActionTextEdit(QWidget):
     """
     def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
         # TODO: change actionID to chunkIndex?
-        super(ActionTextEdit, self).__init__()
+        super(ChunkTextEdit, self).__init__()
 
         self.layout = QGridLayout()
         # TODO: set alignment
