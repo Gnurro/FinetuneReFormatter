@@ -51,7 +51,6 @@ class MainWindow(QMainWindow):
         - mode state persistence
             - save with project file?
         - clear nomenclature
-            - rename ActionStack to ChunkStack
             - call 'chunk json project thingamajig files'...
                 - ChunkFile(s)?
                 - Project(s)-/File(s)?
@@ -97,10 +96,10 @@ class MainWindow(QMainWindow):
             - make more robust?
         """
         # print(f'setMode called with {modeID}')
-        if modeID == 'ActionStack':
-            print('Set mode to ActionStack.')
-            curActionStack = ActionStack()
-            self.setCentralWidget(curActionStack)
+        if modeID == 'ChunkStack':
+            print('Set mode to ChunkStack.')
+            curChunkStack = ChunkStack()
+            self.setCentralWidget(curChunkStack)
         if modeID == 'ChunkCombiner':
             print('Set mode to ChunkCombiner.')
             curChunkCombiner = ChunkCombiner()
@@ -138,7 +137,7 @@ class MainWindow(QMainWindow):
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
             # print(self.curData)
-            self.allowedModes = ['ActionStack', 'ChunkCombiner']
+            self.allowedModes = ['ChunkStack', 'ChunkCombiner']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
             self.setMode('ChunkCombiner')
             self._createMenu()
@@ -176,8 +175,8 @@ class MainWindow(QMainWindow):
                 if allowedMode == 'SourceInspector':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('SourceInspector'))
 
-                if allowedMode == 'ActionStack':
-                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ActionStack'))
+                if allowedMode == 'ChunkStack':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkStack'))
 
                 if allowedMode == 'ChunkCombiner':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkCombiner'))
@@ -840,7 +839,7 @@ class InitialPrep(QWidget):
         return None
 
 
-class ActionStack(QWidget):
+class ChunkStack(QWidget):
     """
     A list of consecutive chunks in the form of ActionTextEdits
 
@@ -858,7 +857,7 @@ class ActionStack(QWidget):
         - rename class/mode to ChunkStack
     """
     def __init__(self, startIndex=0, actionAmount=6):
-        super(ActionStack, self).__init__()
+        super(ChunkStack, self).__init__()
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -877,9 +876,9 @@ class ActionStack(QWidget):
 
     def fillStack(self):
         """update the displayed chunk stack"""
-        print('Trying to clear ActionStack..')
+        print('Trying to clear ChunkStack..')
         self.clearStack()
-        print('Filling ActionStack...')
+        print('Filling ChunkStack...')
         for actionTextIndex in range(self.startIndex, self.startIndex + self.actionAmount):
             self.layout.addWidget(ActionTextEdit(actionID=actionTextIndex, actionContent=self.findMainWindow().curData['chunks'][actionTextIndex]))
 
@@ -891,7 +890,7 @@ class ActionStack(QWidget):
 
     def clearStack(self):
         """clears the chunk stack"""
-        print('Clearing ActionStack...')
+        print('Clearing ChunkStack...')
         for actionIndex in reversed(range(1, self.layout.count())):
             self.layout.itemAt(actionIndex).widget().setParent(None)
 
