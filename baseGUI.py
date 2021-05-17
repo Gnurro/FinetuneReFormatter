@@ -2,9 +2,9 @@
 Base module for the GUI
 
 TODO:
-    - intro screen
-        - with progress display on opening/tokenizing
-    - make tokenization optional to prevent large files from locking it up
+    - figure out license!!!
+    - chunkFile templates?
+    - move findMainWindow() outside of spec classes, iE make it static?
 """
 
 import sys
@@ -34,37 +34,76 @@ class MainWindow(QMainWindow):
     """
     Main window, holding all the top-level things
 
-    TODO: modes!
-        -> prep mode for raw data
-        -> token explorer
-    TODO: settings
+    TODO:
+        - settings
+            - file
+            - centralWidget
+        - overwrite warnings
+        - unsaved file QoL
+            - window title indicator
+            - close warning
+            - status bar?
+            - autosaving?
+        - save as
+        - over-all hotkeys/shortcuts
+            - saving
+            - switching modes
+        - mode state persistence
+            - save with project file?
+        - clear nomenclature
+            - call 'chunk json project thingamajig files'...
+                - ChunkFile(s)?
+                - Project(s)-/File(s)?
+        - CLI/direct file loading?
+            - sys.args
+            - flags to instantly apply common fixes?
+        - add toolbar?
+            - save
+            - shortcuts by mode?
+            - buttons to switch modes?
     """
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        # window title:
         self.setWindowTitle('Gnurros FinetuneReFormatter')
+        # TODO: settings - make these configurable:
         self.setGeometry(1000, 1000, 800, 800)
         self.move(800, 50)
-
+        # overall values used for file handling:
         self.curFileInfo = ''
         self.curFilePath = ''
         self.curFileType = ''
         self.curFileName = ''
+        # currently allowed GUI modes, determined by file type:
         self.allowedModes = []
+        # actual, temporary data edited:
         self.curData = ''
+        # intro screen showing on start:
+        InitialIntroScreen = IntroScreen()
+        self.setCentralWidget(InitialIntroScreen)
 
-        self.fileSelect()
+        # self.fileSelect()
 
         # self._createToolbar()
 
         # self._createStatusBar()
 
     def setMode(self, modeID):
+        """
+        set/switch to different GUI modes
+
+        TODO:
+            - make more robust?
+        """
         # print(f'setMode called with {modeID}')
-        if modeID == 'ActionStack':
-            print('Set mode to ActionStack.')
-            curActionStack = ActionStack()
-            self.setCentralWidget(curActionStack)
+        if modeID == 'ChunkStack':
+            print('Set mode to ChunkStack.')
+            curChunkStack = ChunkStack()
+            self.setCentralWidget(curChunkStack)
+        if modeID == 'ChunkCombiner':
+            print('Set mode to ChunkCombiner.')
+            curChunkCombiner = ChunkCombiner()
+            self.setCentralWidget(curChunkCombiner)
         if modeID == 'SourceInspector':
             print('Set mode to SourceInspector.')
             curSourceInspector = SourceInspector()
@@ -75,6 +114,14 @@ class MainWindow(QMainWindow):
             self.setCentralWidget(curInitialPrep)
 
     def fileSelect(self):
+        """
+        file selection, setting allowed modes and loading
+
+        TODO:
+            - warnings for wrong type in GUI
+            - allowed file types in QtFileDialog?
+            - UTF-8 conversion?
+        """
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
@@ -90,9 +137,9 @@ class MainWindow(QMainWindow):
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
             # print(self.curData)
-            self.allowedModes = ['ActionStack']
+            self.allowedModes = ['ChunkStack', 'ChunkCombiner']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-            self.setMode('ActionStack')
+            self.setMode('ChunkCombiner')
             self._createMenu()
         else:
             print('File type of selected file is not compatible!')
@@ -110,6 +157,7 @@ class MainWindow(QMainWindow):
         self.topMenu.clear()
         # file menu:
         self.menuFile = self.topMenu.addMenu("&File")
+        # TODO: save as
         self.menuFile.addAction('&Open', self.fileSelect)
         self.menuFile.addAction('&Save', self.saveCurFile)
         self.menuFile.addAction('&Exit', self.close)
@@ -127,8 +175,11 @@ class MainWindow(QMainWindow):
                 if allowedMode == 'SourceInspector':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('SourceInspector'))
 
-                if allowedMode == 'ActionStack':
-                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ActionStack'))
+                if allowedMode == 'ChunkStack':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkStack'))
+
+                if allowedMode == 'ChunkCombiner':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkCombiner'))
 
     def _createToolbar(self):
         tools = QToolBar()
@@ -141,9 +192,55 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status)
 
 
+class IntroScreen(QWidget):
+    """
+    Intro splash screen with file selection and access to non-file based modes
+
+    TODO:
+        - settings access
+        - create new 'project'?
+            - ...from chunkFile template?
+    """
+    def __init__(self):
+        super(IntroScreen, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.headLineLabel = QLabel('<h1><b>Gnurros Finetune-ReFormatter</h1></b>')
+
+        self.openFileButton = QPushButton('Open File')
+        self.openFileButton.clicked.connect(self.openFile)
+
+        self.exploreTokensButton = QPushButton('Explore tokens')
+        self.exploreTokensButton.clicked.connect(self.toTokenExplorer)
+
+        self.layout.addWidget(self.headLineLabel, 0, 0)
+        self.layout.addWidget(self.openFileButton, 1, 0)
+        self.layout.addWidget(self.exploreTokensButton, 2, 0)
+
+    def openFile(self):
+        self.findMainWindow().fileSelect()
+
+    def toTokenExplorer(self):
+        curTokenExplorer = TokenExplorer()
+        self.findMainWindow().setCentralWidget(curTokenExplorer)
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
 class SourceInspector(QWidget):
     """
     Checking for common source text issues, like excessive newlines, with an interactive text editor
+
+    TODO:
+        - turn 'newline modes' into generic 'issue trackers'
+        - go through all found issues, instead of getting stuck on the first?
     """
     def __init__(self):
         super(SourceInspector, self).__init__()
@@ -179,14 +276,17 @@ class SourceInspector(QWidget):
         self.badLineList = []
 
         self.newlinesLabel = QLabel()
+        # TODO: get rid of one of these:
         self.newlineCount = self.textField.toPlainText().count('\n')
         self.textLines = self.textField.toPlainText().split('\n')
 
         self.newlineModeComboBox = QComboBox()
+        # TODO: make this generic:
         self.newlineModeComboBox.addItems(['LineEnd', 'InLine', 'NoDoubles'])
         self.newlineModeComboBox.currentIndexChanged.connect(self.newLineModeChange)
 
         self.nextBadLineButton = QPushButton()
+        # TODO: make this generic:
         self.nextBadLineButton.setText('Move cursor to bad line')
         self.nextBadLineButton.clicked.connect(self.findBadLines)
 
@@ -194,8 +294,9 @@ class SourceInspector(QWidget):
         self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
 
         # misc warnings:
-        self.warningsLabel = QLabel()
-        self.warningsLabel.setText('Warnings:')
+        # TODO: on-demand warning check?
+        self.warningsLabel = QLabel('Warnings:')
+        # self.warningsLabel.setText('Warnings:')
         self.checkWarnables()
 
         # putting all the widgets into layout:
@@ -232,7 +333,14 @@ class SourceInspector(QWidget):
         self.countBadLines()
 
     def countBadLines(self):
-        """count 'bad lines'/newlines that might be detrimental for finetuning"""
+        """
+        count 'bad lines'/newlines that might be detrimental for finetuning
+
+        TODO:
+            - make lineEnders configurable
+                - in settings?
+                - ...elsewhere?
+        """
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
         self.badLineCount = 0
@@ -242,6 +350,7 @@ class SourceInspector(QWidget):
         lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':', '—', '*', ')', '_', '’', ']', ',']
         # process line by line:
         for line in self.textLines:
+            # TODO: untangle this mess?
             lineIsFine = False
             # handle empty lines; in NoDoubles mode these are assumed to be double newlines:
             if len(line) == 0:
@@ -252,7 +361,6 @@ class SourceInspector(QWidget):
             else:
                 if self.newlineMode == 'NoDoubles':
                     lineIsFine = True
-
             # handle lines depending on the substring they end with:
             if self.newlineMode == 'LineEnd':
                 for lineEnder in lineEnders:
@@ -282,8 +390,10 @@ class SourceInspector(QWidget):
         """move the text cursor to the first bad newline and focus the text field"""
         # ...but only if there are any:
         if len(self.badLineList) > 0:
+            print(f'found badLineList with content: {self.badLineList}')
             # get the string position of the first bad newline:
             curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[0]]
+            print(f'got text index of first badLine: {curBadLineTextIndex}')
             # put the text cursor there:
             self.setTextCursorPosition(curBadLineTextIndex)
             # focus on the text field so the cursor isn't placed somewhere else by manual mouseclick focus:
@@ -291,7 +401,8 @@ class SourceInspector(QWidget):
 
     def getLineStringIndexList(self):
         """returns list of text string indexes of the start of lines"""
-        return [match.start() for match in re.finditer('\n', self.textField.toPlainText())]
+        print('trying to get line text indexes')
+        return [match.start() for match in re.finditer("\n", self.textField.toPlainText())]
 
     def getTextCursor(self):
         """returns the current text cursor object"""
@@ -365,6 +476,7 @@ class QLineNumberArea(QWidget):
 
 
 class QCodeEditor(QPlainTextEdit):
+    # TODO: credit source!
     def __init__(self, parent=None):
         super().__init__(parent)
         self.lineNumberArea = QLineNumberArea(self)
@@ -441,6 +553,22 @@ class InitialPrep(QWidget):
     """
     Utility mode to check raw data statistics and perform simple data preparation
 
+    TODO:
+        - more quick utilities:
+            - double newline removal
+            - leading/trailing spaces removal
+            - PDF export issue fixes
+                - block layout
+                - page numbers
+                - headers
+            - wiki fixes from other prep scripts?
+        - more chunkfile creation options
+            - more placeholder options
+            - low/high token thresholds
+            - additional metadata?
+            - separate mode/(central)widget?
+                - if: better name for this mode
+        - file saving dialogs?
     """
     def __init__(self):
         super(InitialPrep, self).__init__()
@@ -448,7 +576,7 @@ class InitialPrep(QWidget):
         self.layout = QGridLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
-
+        # stat values:
         self.curCharCount = 0
         self.curWordCount = 0
         self.curLines = []
@@ -461,8 +589,9 @@ class InitialPrep(QWidget):
 
         self.dataStatsLabel = QLabel('Stats:')
         self.dataStatsLabel.setAlignment(Qt.AlignTop)
-
-        self.sentenceEndPlaceholder = '%%%%%'  # hope this thing doesn't show up in any data...
+        # TODO: make this configurable:
+        # placeholder string for sentence endings:
+        self.sentenceEndPlaceholder = '%%%%%'
         self.sentences = []
 
         self.tokenizeButton = QPushButton('Tokenize data')
@@ -471,12 +600,11 @@ class InitialPrep(QWidget):
         self.tokenDistLabel = QLabel('Token distribution:')
         self.tokenDistributionButton = QPushButton('Calculate token distribution')
         self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
-
+        # TODO: figure out if this is even useful:
         self.chopSentencesButton = QPushButton('Split into sentences and save')
         self.chopSentencesButton.clicked.connect(self.exportSentenceList)
         self.chopSentencesFileSuffixLabel = QLabel('Sentence file suffix:')
         self.chopSentencesFileSuffix = QLineEdit('_sentences')
-
         # chunking:
         self.makeChunksHeaderLabel = QLabel('<b>Chunking:</b>')
         self.makeChunksFileTknsPerChunkLabel = QLabel('Maximum tokens per chunk:')
@@ -487,27 +615,31 @@ class InitialPrep(QWidget):
         # placeholder chunks insertion:
         self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
         # placeholder chunk interval:
+        # TODO: add this:
         # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
         # self.makeChunksFileInsertsInterval = QSpinBox()
         # self.makeChunksFileInsertsInterval.setMinimum(2)
         # placeholder chunk metadata type:
         self.makeChunksFileInsertsTypeLabel = QLabel('Placeholder type tag:')
+        # TODO: make this preconfigurable:
         self.makeChunksFileInsertsType = QLineEdit('generic')
         self.makeChunksFileInsertsType.setMaxLength(12)
         # placeholder chunk placeholder text:
         self.makeChunksFileInsertsTextLabel = QLabel('Placeholder text:')
+        # TODO: make this preconfigurable:
         self.makeChunksFileInsertsText = QLineEdit('PLACEHOLDER')
         # chunk file export:
         self.makeChunksFileSuffixLabel = QLabel(f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}')
+        # TODO: make this preconfigurable:
         self.makeChunksFileSuffix = QLineEdit('tknChunks')
         self.makeChunksButton = QPushButton('Create chunks and save')
         self.makeChunksButton.clicked.connect(self.exportChunks)
-
-        self.miscPrepLabel = QLabel('<b>Miscellaneous small fixes:</b>')
-
+        # one-button fixes:
+        self.miscPrepLabel = QLabel('<b>Miscellaneous fixes:</b>')
+        # remove spaces at line ends:
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
-
+        # get basic statistics:
         self.getDataStats()
 
         self.layout.addWidget(self.tokenizeButton, 0, 0)
@@ -548,6 +680,7 @@ class InitialPrep(QWidget):
         self.curLines = self.findMainWindow().curData.split('\n')
         self.curLineCount = len(self.curLines)
         # sentences:
+        # TODO: make this configurable:
         sentenceEnders = ['.', '!', '?', ':']
         rawSentencesMarked = self.findMainWindow().curData
         for sentenceEnder in sentenceEnders:
@@ -575,6 +708,7 @@ class InitialPrep(QWidget):
                                     f'Number of unique tokens: {self.uniqueTokenCount}')
 
     def calculateTokenDistribution(self):
+        """recursively iterate through data and count token occurrences"""
         for token in self.tokens:
             if token not in self.uniqueTokens:
                 self.uniqueTokens.append(token)
@@ -587,6 +721,7 @@ class InitialPrep(QWidget):
 
         self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
         showTokenDistString = ''
+        # TODO: make number of tokens shown configurable
         for tokenFrequency in self.tokenDistribution[:10]:
             for key, value in fixEncodes.items():
                 if value == tokenFrequency[0]:
@@ -610,6 +745,16 @@ class InitialPrep(QWidget):
             sentenceOutFile.write(json.dumps(self.sentences))
 
     def exportChunks(self):
+        """
+        build chunks of a defined number of tokens from complete sentences and save as chunkFile
+
+        TODO:
+            - fix wonky parts
+                - stop adding redundant empty chunks at the end
+            - make placeholder insertion generic
+                - allow more placeholders
+                - allow other spacing
+        """
         curTokenCount = 0  # current number of tokens in current chunk
         curChunk = ""  # chunk text
         chunkList = []  # list of properly sized chunks
@@ -628,19 +773,34 @@ class InitialPrep(QWidget):
                 # print("-> Hit chunk token cap! Starting new chunk...")
                 if curChunk[-1] == " ":
                     curChunk = curChunk[:-1]
+                if curChunk[0] == " ":
+                    curChunk = curChunk[1:]
                 curChunk = curChunk.replace(" \n\n", "\n\n")
+                curChunk = curChunk.replace("  ", " ")
                 chunkList.append(curChunk)
+                # curChunk = f"{self.sentences[index]} "
                 curChunk = f"{self.sentences[index]} "
                 curTokenCount = len(currentTokens)
             else:
                 # print("-> Still below chunk token cap.")
+                # curChunk += f"{self.sentences[index]} "
                 curChunk += f"{self.sentences[index]} "
 
         if curChunk[-1] == " ":
             curChunk = curChunk[:-1]
+
         chunkList.append(curChunk)
 
+
+        # for chunk in chunkList:
+            # print(f'{chunk}///\n')
+            # if chunk[0] == " ":
+                # print('woop!')
+                # chunk = chunk[0:]
+
+
         # print(chunkList)
+
         fullList = []
 
         if self.makeChunksFileInsertsCheckbox.isChecked():
@@ -651,16 +811,24 @@ class InitialPrep(QWidget):
             for chunk in chunkList:
                 fullList.append({'text': chunk, 'type': 'sourceText'})
 
-        chunkListJSON = json.dumps(fullList)
+        # chunkListJSON = json.dumps(fullList)
         # print(chunkListJSON)
 
+        # add project data:
+        fullData = {'projectData': {'targetTknsPerChunk': self.makeChunksFileTknsPerChunk.value(), 'tagTypeData': {}}, 'chunks': fullList}
+        fullDataJSON = json.dumps(fullData)
+
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
-            chunksOutFile.write(chunkListJSON)
+            # chunksOutFile.write(chunkListJSON)
+            chunksOutFile.write(fullDataJSON)
 
     def updateTokensPerChunk(self):
+        """inserts desired token number into suffix automatically"""
+        # TODO: make this configurable:
         self.makeChunksFileSuffixLabel.setText(f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}')
 
     def lineEndSpaceRemove(self):
+        """removes spaces at line ends"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
 
     def findMainWindow(self):
@@ -671,35 +839,48 @@ class InitialPrep(QWidget):
         return None
 
 
-class ActionStack(QWidget):
+class ChunkStack(QWidget):
     """
-    A list of consecutive chunks in the form of ActionTextEdits
+    A list of consecutive chunks in the form of ChunkTextEdits
 
-    TODO: Buttons: 'scrolling'?
+    TODO:
+        - make navigation more convenient
+            - make nice header (widget?)
+            - Buttons: 'scrolling'?
+        - make this cover the approximate context window
+            - make chunk widgets more compact
+            - calculate total tokens in displayed chunks
+            - apply fitting chunkAmount
+        - settings:
+            - chunkAmount hard setting
+            - toggle for context-window auto-sizing
+        - rename class/mode to ChunkStack
     """
-    def __init__(self, startIndex=0, actionAmount=6):
-        super(ActionStack, self).__init__()
-
-        self.startIndex = startIndex
-        self.actionAmount = actionAmount
+    def __init__(self, startIndex=0, chunkAmount=6):
+        super(ChunkStack, self).__init__()
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
-
+        # initial view position:
+        # TODO: give this project persistence?
+        self.startIndex = startIndex
+        self.chunkAmount = chunkAmount
+        # change view position:
         self.startIndexSpinBox = QSpinBox()
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData)-actionAmount)
+        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-chunkAmount)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
 
         self.layout.addWidget(self.startIndexSpinBox)
-
+        # initial stack filling:
         self.fillStack()
 
     def fillStack(self):
-        # print('Trying to clear ActionStack..')
+        """update the displayed chunk stack"""
+        print('Trying to clear ChunkStack..')
         self.clearStack()
-        # print('Filling ActionStack...')
-        for actionTextIndex in range(self.startIndex, self.startIndex + self.actionAmount):
-            self.layout.addWidget(ActionTextEdit(actionID=actionTextIndex, actionContent=self.findMainWindow().curData[actionTextIndex]))
+        print('Filling ChunkStack...')
+        for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
+            self.layout.addWidget(ChunkTextEdit(actionID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
@@ -708,70 +889,77 @@ class ActionStack(QWidget):
         return None
 
     def clearStack(self):
-        # print('Clearing ActionStack...')
+        """clears the chunk stack"""
+        print('Clearing ChunkStack...')
         for actionIndex in reversed(range(1, self.layout.count())):
             self.layout.itemAt(actionIndex).widget().setParent(None)
 
     def startIndexChange(self):
+        """track changes in view position"""
         self.startIndex = self.startIndexSpinBox.value()
         self.fillStack()
 
 
-class ActionTextEdit(QWidget):
+class ChunkTextEdit(QWidget):
     """
     Interactive widget holding a single chunk/action
 
     TODO:
-        - token threshold warnings...?
+        - token threshold warnings
+            - ...define token thresholds and store them
+        - change chunkType edit to dropdown?
+            -> chunkTypes defined elsewhere
+            - might only work nicely with chunkFile/project handler widget
+        - rename widgetClass to SingleChunkEdit/ChunkTextEdit/somesuch
     """
     def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
-        super(ActionTextEdit, self).__init__()
-
-        self.actionID = actionID
+        # TODO: change actionID to chunkIndex?
+        super(ChunkTextEdit, self).__init__()
 
         self.layout = QGridLayout()
+        # TODO: set alignment
         self.setLayout(self.layout)
 
+        # chunk index:
+        self.actionID = actionID
+        # TODO: compact IDlabel+tokens?
         self.IDlabel = QLabel('Chunk ID: ' + str(actionID))
-
+        # chunk type tag:
         self.typeField = QLineEdit(actionContent['type'])
         self.typeField.setMaxLength(12)
         self.typeField.setMaximumWidth(80)
         self.typeField.setEnabled(False)
         self.typeField.editingFinished.connect(self.updateType)
-
+        # chunk content text editor:
         self.textField = QTextEdit()
         self.textField.setAcceptRichText(False)
         self.textField.setText(actionContent['text'])
         self.textField.textChanged.connect(self.textChange)
-
+        # token counter:
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel = QLabel('Tokens: ' + str(self.tokenCount))
-
+        # 'More' button:
         self.advancedMenu = QToolButton()
         self.advancedMenu.setText('More')
         self.advancedMenu.setPopupMode(QToolButton.InstantPopup)
         self.advancedMenu.setMenu(QMenu(self.advancedMenu))
-
+        # add chunk above:
         topSpliceAction = QWidgetAction(self.advancedMenu)
         topSpliceAction.setText('Add chunk above.')
         topSpliceAction.triggered.connect(self.spliceAbove)
         self.advancedMenu.menu().addAction(topSpliceAction)
-
+        # add chunk below:
         bottomSpliceAction = QWidgetAction(self.advancedMenu)
         bottomSpliceAction.setText('Add chunk below.')
         bottomSpliceAction.triggered.connect(self.spliceBelow)
         self.advancedMenu.menu().addAction(bottomSpliceAction)
-
+        # edit action type tag:
+        # TODO: change this to dropdown?
         self.editTypeAction = QWidgetAction(self.advancedMenu)
         self.editTypeAction.setText('Edit chunk type.')
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
-
-        # self.testButton = QPushButton()
-        # self.testButton.setText('Eh?')
-        # self.testButton.clicked.connect(self.spliceAbove)
 
         self.layout.addWidget(self.textField, 0, 0, 4, 1)
 
@@ -783,9 +971,6 @@ class ActionTextEdit(QWidget):
 
         self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignRight)
 
-        # self.layout.addWidget(self.testButton, 3, 1, alignment=Qt.AlignRight)
-
-
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
             if isinstance(widget, QMainWindow):
@@ -793,20 +978,42 @@ class ActionTextEdit(QWidget):
         return None
 
     def textChange(self):
+        """
+        track text changes, instantly calculate token count and update working data
+
+        TODO:
+            - settings: instant tokens toggle
+            - token threshold warnings
+                - fancy colors?
+                - warning icon?
+        """
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        self.findMainWindow().curData[self.actionID]['text'] = self.textField.toPlainText()
+        self.findMainWindow().curData['chunks'][self.actionID]['text'] = self.textField.toPlainText()
 
     def spliceAbove(self):
-        self.findMainWindow().curData.insert(self.actionID-1, {'text': 'Action content text...', 'type': 'generic'})
+        """
+        add a chunk above this chunk
+
+        TODO:
+            - make type/content configurable
+        """
+        self.findMainWindow().curData['chunks'].insert(self.actionID-1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def spliceBelow(self):
-        self.findMainWindow().curData.insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
+        """
+        add a chunk above this chunk
+
+        TODO:
+            - make type/content configurable
+        """
+        self.findMainWindow().curData['chunks'].insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def editActionType(self):
+        """toggle type tag editing"""
         if not self.typeField.isEnabled():
             self.typeField.setEnabled(True)
             self.editTypeAction.setText('Stop type edit.')
@@ -815,7 +1022,244 @@ class ActionTextEdit(QWidget):
             self.editTypeAction.setText('Edit action type.')
 
     def updateType(self):
-        self.findMainWindow().curData[self.actionID]['type'] = self.typeField.text()
+        """update chunk type tag in working data"""
+        self.findMainWindow().curData['chunks'][self.actionID]['type'] = self.typeField.text()
+
+
+class TokenExplorer(QWidget):
+    def __init__(self):
+        super(TokenExplorer, self).__init__()
+
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+
+        self.testStringLabel = QLabel('String to check:')
+        self.testString = QLineEdit()
+
+        self.checkButton = QPushButton('Find tokens containing string')
+        self.checkButton.clicked.connect(self.tokenCheck)
+
+        self.outputText = QTextEdit()
+        self.outputText.setReadOnly(True)
+
+        self.layout.addWidget(self.testStringLabel, 0, 0)
+        self.layout.addWidget(self.testString, 0, 1)
+        self.layout.addWidget(self.checkButton, 0, 2)
+
+        self.layout.addWidget(self.outputText, 1, 0, 1, 3)
+
+    def tokenCheck(self):
+        catchList = []
+        checkExpression = re.compile(f'.*{self.testString.text()}.*')
+
+        for key, value in fixEncodes.items():
+            matchedExpression = checkExpression.match(key)
+            if matchedExpression:
+                catchList.append(key)
+
+        self.outputText.setText('|'.join(catchList))
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class ChunkCombiner(QWidget):
+    """
+    Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
+
+    TODO:
+        - fix 'unsaved' notice
+            - fix layout insanity
+        - export file dialog?
+        - turn this into chunkFile handler widget?
+    """
+    def __init__(self):
+        super(ChunkCombiner, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.chunkAmount = len(self.findMainWindow().curData['chunks'])
+        self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
+        # check working data for chunk type (tags):
+        chunkTagsList = [chunk['type'] for chunk in self.findMainWindow().curData['chunks']]
+        self.tagTypes = list(set(chunkTagsList))
+        self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
+        tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
+        self.tagTypesLabel = QLabel(f'Chunk types (amount): {", ".join(tagTypeCounts)}')
+        # saving chunk type handling to project file:
+        self.saveTagTypeDataButton = QPushButton('Save type handling data')
+        self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
+        # combined file settings:
+        self.fileSuffixLabel = QLabel('Combined file suffix:')
+        # TODO: make this preconfigurable:
+        self.fileSuffix = QLineEdit('_combined')
+        # add type-based strings, combine chunks and export as plaintext:
+        self.combineExportButton = QPushButton('Export combined chunks')
+        self.combineExportButton.clicked.connect(self.combineExport)
+        # persistent chunk type handling settings:
+        self.tagTypeData = {}
+        if 'tagTypeData' in self.findMainWindow().curData['projectData'].keys():
+            self.tagTypeData = self.findMainWindow().curData['projectData']['tagTypeData']
+        print(f'tagTypeData: {self.tagTypeData}')
+
+        self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
+        self.chunkTypeStack = TagTypeStack(self.tagTypes)
+
+        self.layout.addWidget(self.chunkAmountLabel, 0, 0)
+        self.layout.addWidget(self.tagTypesLabel, 0, 1)
+        self.layout.addWidget(self.saveTagTypeDataButton, 0, 2)
+
+        self.layout.addWidget(self.fileSuffixLabel, 1, 0)
+        self.layout.addWidget(self.fileSuffix, 1, 1)
+        self.layout.addWidget(self.combineExportButton, 1, 2)
+
+        self.layout.addWidget(self.tagTypeStackHeaderLabel, 2, 0)
+        self.layout.addWidget(self.chunkTypeStack, 3, 0, 1, 3)
+
+    def getTagTypeStackItems(self):
+        for index in range(1, len(self.chunkTypeStack.children())):
+            tagID = self.chunkTypeStack.children()[index].getContent()[0]
+            print(tagID)
+            content = self.chunkTypeStack.children()[index].getContent()[1]
+            tagPreNewlineBool = content[0]
+            tagPostNewlineBool = content[1]
+            tagPrefix = content[2]
+            tagSuffix = content[3]
+            self.tagTypeData[tagID] = [tagPreNewlineBool, tagPostNewlineBool, tagPrefix, tagSuffix]
+        print('got chunk type data:')
+        print(self.tagTypeData)
+
+    def updateChunkTypeStack(self):
+        print('updating chunk types')
+        print(self.layout.itemAt(self.layout.count()-1))
+        self.layout.itemAt(self.layout.count()-1).widget().setParent(None)
+        self.chunkTypeStack = TagTypeStack(self.tagTypes)
+        self.layout.addWidget(self.chunkTypeStack, 3, 0, 1, 3)
+
+    def saveTagTypeData(self):
+        print('saving tag type data')
+        self.getTagTypeStackItems()
+        self.findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
+        self.updateChunkTypeStack()
+        with open(f'{self.findMainWindow().curFilePath}', 'w', encoding='utf-8') as chunksOutFile:
+            fullDataJSON = json.dumps(self.findMainWindow().curData)
+            chunksOutFile.write(fullDataJSON)
+
+    def combineExport(self):
+        self.getTagTypeStackItems()
+        chunkTextsList = []
+        for chunkIndex in range(len(self.findMainWindow().curData['chunks'])):
+            chunkText = self.findMainWindow().curData['chunks'][chunkIndex]['text']
+            # add prefix:
+            chunkText = self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][2] + chunkText
+            # add suffix:
+            chunkText += self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][3]
+            # check for newline adding to start of chunk text:
+            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][0]:
+                chunkText = '\n' + chunkText
+            # check for newline adding to end of chunk text:
+            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][1]:
+                chunkText += '\n'
+            # add updated chunk text to list:
+            chunkTextsList.append(chunkText)
+        # join the chunk text list:
+        combinedString = ''.join(chunkTextsList)
+        # print(combinedString)
+        # save the whole thing:
+        with open(f'{self.findMainWindow().curFilePath.replace(".json", "")}{self.fileSuffix.text()}.txt', 'w', encoding='utf-8') as combinedChunksFile:
+            combinedChunksFile.write(combinedString)
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class TagTypeStack(QWidget):
+    """widget to hold list of chunk types and keep everything interactive"""
+    def __init__(self, tagTypes):
+        super(TagTypeStack, self).__init__()
+
+        self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.tagTypes = tagTypes
+
+        for tagType in self.tagTypes:
+            curTagTypeHolder = TagTypeHolder(tagType)
+            self.layout.addWidget(curTagTypeHolder)
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class TagTypeHolder(QWidget):
+    """holds single chunk type handling"""
+    def __init__(self, tagType):
+        super(TagTypeHolder, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.tagType = tagType
+        self.tagTypeIdLabel = QLabel(tagType)
+        self.tagTypeSaveWarnLabel = QLabel('')
+
+        self.tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
+        self.tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
+
+        self.tagTypePrefixLabel = QLabel('Prefix:')
+        self.tagTypePrefix = QLineEdit()
+
+        self.tagTypeSuffixLabel = QLabel('Suffix:')
+        self.tagTypeSuffix = QLineEdit()
+
+        if tagType in self.findMainWindow().curData['projectData']['tagTypeData'].keys():
+            self.tagTypeSaveWarnLabel.setText('')
+            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][0]:
+                self.tagTypeFrontNewlineCheckbox.setChecked(True)
+            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][1]:
+                self.tagTypeBackNewlineCheckbox.setChecked(True)
+            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2]:
+                self.tagTypePrefix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2])
+            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3]:
+                self.tagTypeSuffix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3])
+        else:
+            self.tagTypeSaveWarnLabel.setText('<b>(not saved)</b>')
+
+        self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
+        self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 1)
+        self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
+        self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
+        self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
+        self.layout.addWidget(self.tagTypePrefix, 2, 1)
+        self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
+        self.layout.addWidget(self.tagTypeSuffix, 3, 1)
+
+    def getContent(self):
+        outTagType = self.tagType
+        preNewlineBool = self.tagTypeFrontNewlineCheckbox.isChecked()
+        postNewlineBool = self.tagTypeBackNewlineCheckbox.isChecked()
+        prefix = self.tagTypePrefix.text()
+        suffix = self.tagTypeSuffix.text()
+        return outTagType, [preNewlineBool, postNewlineBool, prefix, suffix]
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
 
 
 if __name__ == '__main__':
