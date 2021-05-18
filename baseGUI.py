@@ -347,7 +347,7 @@ class SourceInspector(QWidget):
         # list of strings that are proper ends of lines/end sentences:
         # lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':']
         # lineEnders after trying on Moby Dick:
-        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', ':', '—', '*', ')', '_', '’', ']', ',']
+        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',']
         # process line by line:
         for line in self.textLines:
             # TODO: untangle this mess?
