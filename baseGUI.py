@@ -888,7 +888,7 @@ class ChunkStack(QWidget):
         self.clearStack()
         # print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
-            self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
+            self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def clearStack(self):
         """clears the chunk stack"""
@@ -993,7 +993,7 @@ class ChunkTextEdit(QWidget):
             - might only work nicely with chunkFile/project handler widget
         - make more compact version?
     """
-    def __init__(self, chunkID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
+    def __init__(self, chunkID=0, chunkContent={'text': 'Chunk content text...', 'type': 'generic'}):
         # TODO: change chunkID to chunkIndex?
         super(ChunkTextEdit, self).__init__()
 
@@ -1008,7 +1008,7 @@ class ChunkTextEdit(QWidget):
         # TODO: compact IDlabel+tokens?
         self.IDlabel = QLabel('ID: ' + str(chunkID))
         # chunk type tag:
-        self.typeField = QLineEdit(actionContent['type'])
+        self.typeField = QLineEdit(chunkContent['type'])
         self.typeField.setMaxLength(12)
         self.typeField.setMaximumWidth(80)
         self.typeField.setEnabled(False)
@@ -1016,7 +1016,7 @@ class ChunkTextEdit(QWidget):
         # chunk content text editor:
         self.textField = QTextEdit()
         self.textField.setAcceptRichText(False)
-        self.textField.setText(actionContent['text'])
+        self.textField.setText(chunkContent['text'])
         self.textField.textChanged.connect(self.textChange)
         # token counter:
         self.tokens = encoder.encode(self.textField.toPlainText())
