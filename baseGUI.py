@@ -240,7 +240,10 @@ class SourceInspector(QWidget):
 
     TODO:
         - turn 'newline modes' into generic 'issue trackers'
-        - go through all found issues, instead of getting stuck on the first?
+        - go through all found issues, instead of getting stuck on the first
+            - like usual in-text search
+            - occurrence/all occurrences
+            - back/forward buttons
     """
     def __init__(self):
         super(SourceInspector, self).__init__()
