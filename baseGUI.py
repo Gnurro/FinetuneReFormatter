@@ -139,7 +139,7 @@ class MainWindow(QMainWindow):
             # print(self.curData)
             self.allowedModes = ['ChunkStack', 'ChunkCombiner']
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-            self.setMode('ChunkCombiner')
+            self.setMode('ChunkStack')
             self._createMenu()
         else:
             print('File type of selected file is not compatible!')
@@ -857,8 +857,6 @@ class ChunkStack(QWidget):
         - settings:
             - chunkAmount hard setting
             - toggle for context-window auto-sizing
-        - Fix 'add chunk above'
-            - index is -1 off?
     """
     def __init__(self, startIndex=0, chunkAmount=6):
         super(ChunkStack, self).__init__()
@@ -914,7 +912,7 @@ class ChunkTextEdit(QWidget):
         - change chunkType edit to dropdown?
             -> chunkTypes defined elsewhere
             - might only work nicely with chunkFile/project handler widget
-        - rename widgetClass to SingleChunkEdit/ChunkTextEdit/somesuch
+
     """
     def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
         # TODO: change actionID to chunkIndex?
@@ -1003,7 +1001,7 @@ class ChunkTextEdit(QWidget):
         TODO:
             - make type/content configurable
         """
-        self.findMainWindow().curData['chunks'].insert(self.actionID-1, {'text': 'Action content text...', 'type': 'generic'})
+        self.findMainWindow().curData['chunks'].insert(self.actionID, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def spliceBelow(self):
