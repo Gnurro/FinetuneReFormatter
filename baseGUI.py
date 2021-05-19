@@ -78,6 +78,8 @@ class MainWindow(QMainWindow):
         self.allowedModes = []
         # actual, temporary data edited:
         self.curData = ''
+        # mode value persistence:
+        self.persistentChunkStackStartIndex = 0
         # intro screen showing on start:
         InitialIntroScreen = IntroScreen()
         self.setCentralWidget(InitialIntroScreen)
@@ -848,11 +850,9 @@ class ChunkStack(QWidget):
 
     TODO:
         - make navigation more convenient
-            - make nice header (widget?)
             - Buttons: 'scrolling'?
         - make this cover the approximate context window
             - make chunk widgets more compact
-            - calculate total tokens in displayed chunks
             - apply fitting chunkAmount
         - settings:
             - chunkAmount hard setting
@@ -869,6 +869,8 @@ class ChunkStack(QWidget):
         # initial view position:
         # TODO: give this project persistence?
         self.startIndex = startIndex
+        if not self.findMainWindow().persistentChunkStackStartIndex == 0:
+            self.startIndex = self.findMainWindow().persistentChunkStackStartIndex
         self.chunkAmount = chunkAmount
         # change view position:
         self.startIndexSpinBox = QSpinBox()
@@ -888,13 +890,13 @@ class ChunkStack(QWidget):
         """update the displayed chunk stack"""
         # print('Trying to clear ChunkStack..')
         self.clearStack()
-        print('Filling ChunkStack...')
+        # print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
             self.layout.addWidget(ChunkTextEdit(actionID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def clearStack(self):
         """clears the chunk stack"""
-        print('Clearing ChunkStack...')
+        # print('Clearing ChunkStack...')
         for actionIndex in reversed(range(1, self.layout.count())):
             self.layout.itemAt(actionIndex).widget().setParent(None)
 
@@ -920,7 +922,7 @@ class ChunkStackNavigation(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
-        print('initializing navBar')
+        # print('initializing navBar')
 
         # initial view position:
         # TODO: give this project persistence?
@@ -928,16 +930,18 @@ class ChunkStackNavigation(QWidget):
         # print(self.parentWidget())
         # self.startIndex = self.parentWidget().startIndex
         self.startIndex = startIndex
-        print(f'got startIndex: {self.startIndex}')
+        # print(f'got startIndex: {self.startIndex}')
         # self.chunkAmount = self.parentWidget().chunkAmount
         self.chunkAmount = chunkAmount
-        print(f'got chunkAmount: {self.chunkAmount}')
+        # print(f'got chunkAmount: {self.chunkAmount}')
         # info label:
         self.navLabel = QLabel('View beginning at chunk index:')
         # change view position:
         self.startIndexSpinBox = QSpinBox()
-        print(f"got total chunk number: {len(self.findMainWindow().curData['chunks'])}")
+        # print(f"got total chunk number: {len(self.findMainWindow().curData['chunks'])}")
         self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
+        if not self.findMainWindow().persistentChunkStackStartIndex == 0:
+            self.startIndexSpinBox.setValue(self.findMainWindow().persistentChunkStackStartIndex)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
 
         self.currentTokensInView = 0
@@ -953,7 +957,7 @@ class ChunkStackNavigation(QWidget):
 
         # self.updateTokensInView()
 
-        print('navbar initialized')
+        # print('navbar initialized')
 
     def startIndexChange(self):
         """track changes in view position"""
@@ -962,7 +966,7 @@ class ChunkStackNavigation(QWidget):
         # print(self.parentWidget())
         self.parentWidget().startIndex = self.startIndex
         self.parentWidget().fillStack()
-
+        self.findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
 
     def updateTokensInView(self):
