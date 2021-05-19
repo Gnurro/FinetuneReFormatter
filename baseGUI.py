@@ -857,7 +857,8 @@ class ChunkStack(QWidget):
         - settings:
             - chunkAmount hard setting
             - toggle for context-window auto-sizing
-        - rename class/mode to ChunkStack
+        - Fix 'add chunk above'
+            - index is -1 off?
     """
     def __init__(self, startIndex=0, chunkAmount=6):
         super(ChunkStack, self).__init__()
