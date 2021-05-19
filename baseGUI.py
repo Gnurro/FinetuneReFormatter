@@ -858,10 +858,13 @@ class ChunkStack(QWidget):
             - chunkAmount hard setting
             - toggle for context-window auto-sizing
     """
-    def __init__(self, startIndex=0, chunkAmount=6):
+    def __init__(self, startIndex=0, chunkAmount=8):
         super(ChunkStack, self).__init__()
 
         self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
         # initial view position:
         # TODO: give this project persistence?
@@ -872,23 +875,22 @@ class ChunkStack(QWidget):
         self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-chunkAmount)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
 
-        self.layout.addWidget(self.startIndexSpinBox)
+        curNavBar = ChunkStackNavigation(startIndex=self.startIndex, chunkAmount=self.chunkAmount)
+        # print(curNavBar)
+        self.navBar = curNavBar
+
+        # self.layout.addWidget(self.startIndexSpinBox)
+        self.layout.addWidget(self.navBar)
         # initial stack filling:
         self.fillStack()
 
     def fillStack(self):
         """update the displayed chunk stack"""
-        print('Trying to clear ChunkStack..')
+        # print('Trying to clear ChunkStack..')
         self.clearStack()
         print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
             self.layout.addWidget(ChunkTextEdit(actionID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
     def clearStack(self):
         """clears the chunk stack"""
@@ -900,6 +902,82 @@ class ChunkStack(QWidget):
         """track changes in view position"""
         self.startIndex = self.startIndexSpinBox.value()
         self.fillStack()
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
+
+
+class ChunkStackNavigation(QWidget):
+    """navigation bar for the ChunkStack"""
+    def __init__(self, startIndex, chunkAmount):
+        super(ChunkStackNavigation, self).__init__()
+
+        self.layout = QGridLayout()
+        self.layout.setAlignment(Qt.AlignLeft)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.layout)
+
+        print('initializing navBar')
+
+        # initial view position:
+        # TODO: give this project persistence?
+        # print('navbar parent widget:')
+        # print(self.parentWidget())
+        # self.startIndex = self.parentWidget().startIndex
+        self.startIndex = startIndex
+        print(f'got startIndex: {self.startIndex}')
+        # self.chunkAmount = self.parentWidget().chunkAmount
+        self.chunkAmount = chunkAmount
+        print(f'got chunkAmount: {self.chunkAmount}')
+        # info label:
+        self.navLabel = QLabel('View beginning at chunk index:')
+        # change view position:
+        self.startIndexSpinBox = QSpinBox()
+        print(f"got total chunk number: {len(self.findMainWindow().curData['chunks'])}")
+        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
+        self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
+
+        self.currentTokensInView = 0
+        self.tokensInViewLabel = QLabel(f'Tokens in current view: {str(self.currentTokensInView)}')
+
+        self.countButton = QPushButton('Count')
+        self.countButton.clicked.connect(self.updateTokensInView)
+
+        self.layout.addWidget(self.navLabel, 0, 0)
+        self.layout.addWidget(self.startIndexSpinBox, 0, 1)
+        self.layout.addWidget(self.tokensInViewLabel, 0, 2)
+        self.layout.addWidget(self.countButton, 0, 3)
+
+        # self.updateTokensInView()
+
+        print('navbar initialized')
+
+    def startIndexChange(self):
+        """track changes in view position"""
+        self.startIndex = self.startIndexSpinBox.value()
+        # print('startindex updated in navbar')
+        # print(self.parentWidget())
+        self.parentWidget().startIndex = self.startIndex
+        self.parentWidget().fillStack()
+
+        self.updateTokensInView()
+
+    def updateTokensInView(self):
+        self.currentTokensInView = 0
+        for chunkEdit in range(1, self.parentWidget().layout.count()):
+            # print(self.parentWidget().layout.itemAt(chunkEdit).widget().tokenCount)
+            self.currentTokensInView += self.parentWidget().layout.itemAt(chunkEdit).widget().tokenCount
+        # print(self.currentTokensInView)
+        self.tokensInViewLabel.setText(f'Tokens in current view: {str(self.currentTokensInView)}')
+
+    def findMainWindow(self):
+        for widget in app.topLevelWidgets():
+            if isinstance(widget, QMainWindow):
+                return widget
+        return None
 
 
 class ChunkTextEdit(QWidget):
@@ -920,12 +998,14 @@ class ChunkTextEdit(QWidget):
 
         self.layout = QGridLayout()
         # TODO: set alignment
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
         # chunk index:
         self.actionID = actionID
         # TODO: compact IDlabel+tokens?
-        self.IDlabel = QLabel('Chunk ID: ' + str(actionID))
+        self.IDlabel = QLabel('ID: ' + str(actionID))
         # chunk type tag:
         self.typeField = QLineEdit(actionContent['type'])
         self.typeField.setMaxLength(12)
@@ -963,15 +1043,22 @@ class ChunkTextEdit(QWidget):
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
 
+        self.infoLabel = QLabel('ID: ' + str(actionID) + ' Tokens: ' + str(self.tokenCount))
+
         self.layout.addWidget(self.textField, 0, 0, 4, 1)
 
-        self.layout.addWidget(self.IDlabel, 0, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.IDlabel, 0, 1, alignment=Qt.AlignTop)
 
-        self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignRight)
+        # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignTop)
+        # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignRight)
 
-        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignTop)
 
-        self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignRight)
+        # self.layout.addWidget(self.typeField, 1, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignTop)
+
+        # self.layout.addWidget(self.advancedMenu, 2, 1, alignment=Qt.AlignRight)
+        self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignTop)
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
