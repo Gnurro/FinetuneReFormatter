@@ -888,7 +888,7 @@ class ChunkStack(QWidget):
         self.clearStack()
         # print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
-            self.layout.addWidget(ChunkTextEdit(actionID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
+            self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, actionContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def clearStack(self):
         """clears the chunk stack"""
@@ -987,13 +987,14 @@ class ChunkTextEdit(QWidget):
     TODO:
         - token threshold warnings
             - ...define token thresholds and store them
+        - [More]: delete chunk
         - change chunkType edit to dropdown?
             -> chunkTypes defined elsewhere
             - might only work nicely with chunkFile/project handler widget
-
+        - make more compact version?
     """
-    def __init__(self, actionID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
-        # TODO: change actionID to chunkIndex?
+    def __init__(self, chunkID=0, actionContent={'text': 'Chunk content text...', 'type': 'generic'}):
+        # TODO: change chunkID to chunkIndex?
         super(ChunkTextEdit, self).__init__()
 
         self.layout = QGridLayout()
@@ -1003,9 +1004,9 @@ class ChunkTextEdit(QWidget):
         self.setLayout(self.layout)
 
         # chunk index:
-        self.actionID = actionID
+        self.chunkID = chunkID
         # TODO: compact IDlabel+tokens?
-        self.IDlabel = QLabel('ID: ' + str(actionID))
+        self.IDlabel = QLabel('ID: ' + str(chunkID))
         # chunk type tag:
         self.typeField = QLineEdit(actionContent['type'])
         self.typeField.setMaxLength(12)
@@ -1043,7 +1044,7 @@ class ChunkTextEdit(QWidget):
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
 
-        self.infoLabel = QLabel('ID: ' + str(actionID) + ' Tokens: ' + str(self.tokenCount))
+        self.infoLabel = QLabel('ID: ' + str(chunkID) + ' Tokens: ' + str(self.tokenCount))
 
         self.layout.addWidget(self.textField, 0, 0, 4, 1)
 
@@ -1079,7 +1080,7 @@ class ChunkTextEdit(QWidget):
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        self.findMainWindow().curData['chunks'][self.actionID]['text'] = self.textField.toPlainText()
+        self.findMainWindow().curData['chunks'][self.chunkID]['text'] = self.textField.toPlainText()
 
     def spliceAbove(self):
         """
@@ -1088,7 +1089,7 @@ class ChunkTextEdit(QWidget):
         TODO:
             - make type/content configurable
         """
-        self.findMainWindow().curData['chunks'].insert(self.actionID, {'text': 'Action content text...', 'type': 'generic'})
+        self.findMainWindow().curData['chunks'].insert(self.chunkID, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def spliceBelow(self):
@@ -1098,7 +1099,7 @@ class ChunkTextEdit(QWidget):
         TODO:
             - make type/content configurable
         """
-        self.findMainWindow().curData['chunks'].insert(self.actionID+1, {'text': 'Action content text...', 'type': 'generic'})
+        self.findMainWindow().curData['chunks'].insert(self.chunkID+1, {'text': 'Action content text...', 'type': 'generic'})
         self.parentWidget().fillStack()
 
     def editActionType(self):
@@ -1112,7 +1113,7 @@ class ChunkTextEdit(QWidget):
 
     def updateType(self):
         """update chunk type tag in working data"""
-        self.findMainWindow().curData['chunks'][self.actionID]['type'] = self.typeField.text()
+        self.findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
 
 
 class TokenExplorer(QWidget):
