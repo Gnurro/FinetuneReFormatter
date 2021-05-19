@@ -1075,8 +1075,6 @@ class ChunkCombiner(QWidget):
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
 
     TODO:
-        - fix 'unsaved' notice
-            - fix layout insanity
         - export file dialog?
         - turn this into chunkFile handler widget?
     """
