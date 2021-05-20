@@ -245,16 +245,17 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
-        - turn 'newline modes' into generic 'issue trackers'
         - go through all found issues, instead of getting stuck on the first
             - like usual in-text search
             - occurrence/all occurrences
             - back/forward buttons
+        - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
         super(SourceInspector, self).__init__()
 
         self.layout = QGridLayout()
+        # self.layout.setAlignment(Qt.AlignLeft)
         self.setLayout(self.layout)
 
         self.textField = QCodeEditor()
@@ -299,8 +300,18 @@ class SourceInspector(QWidget):
         self.nextBadLineButton.setText('Move cursor to bad line')
         self.nextBadLineButton.clicked.connect(self.findBadLines)
 
+        self.curIssue = 0
+        self.issueBrowseLabel = QLabel()
+
+        self.prevIssueButton = QPushButton('◄')
+        self.prevIssueButton.clicked.connect(self.prevIssue)
+        self.nextIssueButton = QPushButton('►')
+        self.nextIssueButton.clicked.connect(self.nextIssue)
+
         self.countBadLines()
-        self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
+        # self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
+
+        # self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
 
         # misc warnings:
         # TODO: on-demand warning check?
@@ -315,9 +326,11 @@ class SourceInspector(QWidget):
 
         self.layout.addWidget(self.newlinesLabel, 0, 3)
         self.layout.addWidget(self.newlineModeComboBox, 0, 4)
-        self.layout.addWidget(self.nextBadLineButton, 0, 5)
+        self.layout.addWidget(self.issueBrowseLabel, 0, 5)
+        self.layout.addWidget(self.prevIssueButton, 0, 6)
+        self.layout.addWidget(self.nextIssueButton, 0, 7)
 
-        self.layout.addWidget(self.textField, 1, 0, 1, 6)
+        self.layout.addWidget(self.textField, 1, 0, 1, 8)
 
         self.layout.addWidget(self.warningsLabel, 2, 0)
 
@@ -344,17 +357,21 @@ class SourceInspector(QWidget):
     def countBadLines(self):
         """
         count 'bad lines'/newlines that might be detrimental for finetuning
+
+        TODO:
+            - fix NoDoubles mode
+                - use index to go through textLines
         """
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
         self.badLineCount = 0
         # list of strings that are proper ends of lines/end sentences:
+        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
         if self.findMainWindow().settings:
             lineEnders = self.findMainWindow().settings['SourceInspector']['lineEnders']
-        else:
-            lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
         # process line by line:
-        for line in self.textLines:
+        for lineIndex in range(0, len(self.textLines)):
+            line = self.textLines[lineIndex]
             # TODO: untangle this mess?
             lineIsFine = False
             # handle empty lines; in NoDoubles mode these are assumed to be double newlines:
@@ -383,30 +400,46 @@ class SourceInspector(QWidget):
                 continue
             # add line to the list of bad lines and increment counter:
             self.badLineCount += 1
-            self.badLineList.append(self.textLines.index(line))
+            # self.badLineList.append(self.textLines.index(line))
+            self.badLineList.append(lineIndex)
         # update GUI newline info display and button interactivity:
         self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
         if self.badLineCount == 0:
+            self.issueBrowseLabel.setText(f'{str(self.curIssue)}/{str(self.badLineCount)}')
             self.nextBadLineButton.setEnabled(False)
         else:
+            self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
             self.nextBadLineButton.setEnabled(True)
 
     def findBadLines(self):
         """move the text cursor to the first bad newline and focus the text field"""
         # ...but only if there are any:
         if len(self.badLineList) > 0:
-            print(f'found badLineList with content: {self.badLineList}')
+            # print(f'found badLineList with content: {self.badLineList}')
             # get the string position of the first bad newline:
-            curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[0]]
-            print(f'got text index of first badLine: {curBadLineTextIndex}')
+            # curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[0]]
+            curBadLineTextIndex = self.getLineStringIndexList()[self.badLineList[self.curIssue]]
+            # print(f'got text index of first badLine: {curBadLineTextIndex}')
             # put the text cursor there:
             self.setTextCursorPosition(curBadLineTextIndex)
             # focus on the text field so the cursor isn't placed somewhere else by manual mouseclick focus:
             self.textField.setFocus()
 
+    def prevIssue(self):
+        if self.curIssue > 0:
+            self.curIssue -= 1
+            self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
+            self.findBadLines()
+
+    def nextIssue(self):
+        if self.curIssue < self.badLineCount:
+            self.curIssue += 1
+            self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
+            self.findBadLines()
+
     def getLineStringIndexList(self):
         """returns list of text string indexes of the start of lines"""
-        print('trying to get line text indexes')
+        # print('trying to get line text indexes')
         return [match.start() for match in re.finditer("\n", self.textField.toPlainText())]
 
     def getTextCursor(self):
