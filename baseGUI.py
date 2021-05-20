@@ -35,10 +35,10 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO:
-        - warning popups
         - settings
             - centralWidget
         - overwrite warnings
+            - generic save function
         - unsaved file QoL
             - window title indicator
             - close warning
