@@ -1,0 +1,34 @@
+{
+  "general": {
+    "windowSize": [1000, 1000, 800, 800],
+    "windowPosition": [800, 50],
+    "overwriteWarnings": true
+  },
+  "SourceInspector": {
+    "lineEnders": [
+      ".", "!", "?", "<|endoftext|>", "”", "“", ":", "—", "*", ")", "_", "’", "]", ",", "\""
+    ]
+  },
+  "InitialPrep": {
+    "sentenceEndPlaceholder": "%%%%%",
+    "sentenceEnders": [
+      ".", "!", "?", ":"
+    ],
+    "topTokenAmount": 10,
+    "chunking": {
+      "placeholderType": "generic",
+      "placeholderText": "PLACEHOLDER",
+      "autoTokensPerChunkSuffix": true,
+      "chunkFileSuffix": "tknChunks"
+    }
+  },
+  "ChunkStack": {
+    "chunkAmount": 8,
+    "compactChunkView": false,
+    "insertChunkType": "generic",
+    "insertChunkText": "PLACEHOLDER"
+  },
+  "ChunkCombiner": {
+    "chunkFileSuffix": "_combined"
+  }
+}
