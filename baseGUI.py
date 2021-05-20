@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
         else:
             # print('File type of selected file is not compatible!')
             self.setWindowTitle(f'Gnurros FinetuneReFormatter')
-            QMessageBox.about(self, 'Error', 'File type of selected file is not compatible!')
+            QMessageBox.about(self, 'Error', f'File type of selected file ({self.curFileType}) is not compatible!')
 
     def saveCurFile(self):
         with open(self.curFilePath, 'w', encoding='UTF-8') as outData:
