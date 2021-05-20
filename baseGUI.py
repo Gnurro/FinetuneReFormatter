@@ -887,6 +887,7 @@ class ChunkStack(QWidget):
         # print('Trying to clear ChunkStack..')
         self.clearStack()
         # print('Filling ChunkStack...')
+        # print(f"total chunks: {len(self.findMainWindow().curData['chunks'])}, startIndex: {self.startIndex}, startIndex+chunkAmount: {self.startIndex + self.chunkAmount}")
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
             self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
@@ -957,6 +958,7 @@ class ChunkStackNavigation(QWidget):
 
     def startIndexChange(self):
         """track changes in view position"""
+        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
         self.startIndex = self.startIndexSpinBox.value()
         # print('startindex updated in navbar')
         # print(self.parentWidget())
@@ -1043,6 +1045,11 @@ class ChunkTextEdit(QWidget):
         self.editTypeAction.setText('Edit chunk type.')
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
+        # delete chunk:
+        deleteChunkAction = QWidgetAction(self.advancedMenu)
+        deleteChunkAction.setText('Delete chunk.')
+        deleteChunkAction.triggered.connect(self.deleteChunk)
+        self.advancedMenu.menu().addAction(deleteChunkAction)
 
         self.infoLabel = QLabel('ID: ' + str(chunkID) + ' Tokens: ' + str(self.tokenCount))
 
@@ -1114,6 +1121,16 @@ class ChunkTextEdit(QWidget):
     def updateType(self):
         """update chunk type tag in working data"""
         self.findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
+
+    def deleteChunk(self):
+        """delete this chunk"""
+        # print(f'deleting chunk at index {self.chunkID}')
+        self.findMainWindow().curData['chunks'].pop(self.chunkID)
+        newEndIndex = self.parentWidget().startIndex + self.parentWidget().chunkAmount
+        if newEndIndex > len(self.findMainWindow().curData['chunks']):
+            self.parentWidget().startIndex = self.parentWidget().startIndex-1
+            self.parentWidget().navBar.startIndex = self.parentWidget().navBar.startIndex-1
+        self.parentWidget().fillStack()
 
 
 class TokenExplorer(QWidget):
