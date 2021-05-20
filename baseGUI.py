@@ -40,7 +40,6 @@ class MainWindow(QMainWindow):
         - save as
         - over-all hotkeys/shortcuts
             - switching modes
-        - mode state persistence
         - CLI/direct file loading?
             - sys.args
             - flags to instantly apply common fixes?
@@ -828,8 +827,7 @@ class InitialPrep(QWidget):
 
         TODO:
             - fix wonky parts
-                - stop adding redundant empty chunks at the end
-            - make placeholder insertion generic
+            - make placeholder insertion generic?
                 - allow more placeholders
                 - allow other spacing
         """
@@ -856,7 +854,6 @@ class InitialPrep(QWidget):
                 curChunk = curChunk.replace(" \n\n", "\n\n")
                 curChunk = curChunk.replace("  ", " ")
                 chunkList.append(curChunk)
-                # curChunk = f"{self.sentences[index]} "
                 curChunk = f"{self.sentences[index]} "
                 curTokenCount = len(currentTokens)
             else:
@@ -867,7 +864,8 @@ class InitialPrep(QWidget):
         if curChunk[-1] == " ":
             curChunk = curChunk[:-1]
 
-        chunkList.append(curChunk)
+        if len(curChunk) > 0:
+            chunkList.append(curChunk)
 
 
         # for chunk in chunkList:
