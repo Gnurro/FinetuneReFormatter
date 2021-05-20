@@ -20,9 +20,9 @@ import tokensToUTF
 
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
-from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy, QMessageBox, QShortcut
 from PyQt5.QtCore import Qt, QSize, QRect
-from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor
+from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
 
 # more handy encoder reference:
 encoder = get_encoder()
@@ -93,6 +93,8 @@ class MainWindow(QMainWindow):
         InitialIntroScreen = IntroScreen()
         self.setCentralWidget(InitialIntroScreen)
 
+        self.fileSaveShortcut = QShortcut(QKeySequence('Ctrl+S'), self)
+        self.fileSaveShortcut.activated.connect(self.saveCurFile)
         # self.fileSelect()
 
         # self._createToolbar()
@@ -148,7 +150,7 @@ class MainWindow(QMainWindow):
             self.setMode('ChunkStack')
             self._createMenu()
         else:
-            print('File type of selected file is not compatible!')
+            # print('File type of selected file is not compatible!')
             self.setWindowTitle(f'Gnurros FinetuneReFormatter')
             QMessageBox.about(self, 'Error', 'File type of selected file is not compatible!')
 
@@ -245,10 +247,6 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
-        - go through all found issues, instead of getting stuck on the first
-            - like usual in-text search
-            - occurrence/all occurrences
-            - back/forward buttons
         - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
@@ -353,6 +351,7 @@ class SourceInspector(QWidget):
         self.newlineMode = self.newlineModeComboBox.currentText()
         print(f'Newline checking mode set to {self.newlineMode}')
         self.countBadLines()
+        self.findBadLines()
 
     def countBadLines(self):
         """
@@ -430,11 +429,15 @@ class SourceInspector(QWidget):
             self.curIssue -= 1
             self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
             self.findBadLines()
+        elif self.badLineCount == 1:
+            self.findBadLines()
 
     def nextIssue(self):
-        if self.curIssue < self.badLineCount:
+        if self.curIssue + 1 < self.badLineCount:
             self.curIssue += 1
             self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
+            self.findBadLines()
+        elif self.badLineCount == 1:
             self.findBadLines()
 
     def getLineStringIndexList(self):
