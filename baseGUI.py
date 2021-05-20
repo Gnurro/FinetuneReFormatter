@@ -869,15 +869,9 @@ class ChunkStack(QWidget):
             self.startIndex = self.findMainWindow().persistentChunkStackStartIndex
         self.chunkAmount = chunkAmount
         # change view position:
-        self.startIndexSpinBox = QSpinBox()
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks'])-chunkAmount)
-        self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
-
         curNavBar = ChunkStackNavigation(startIndex=self.startIndex, chunkAmount=self.chunkAmount)
-        # print(curNavBar)
         self.navBar = curNavBar
 
-        # self.layout.addWidget(self.startIndexSpinBox)
         self.layout.addWidget(self.navBar)
         # initial stack filling:
         self.fillStack()
@@ -887,7 +881,6 @@ class ChunkStack(QWidget):
         # print('Trying to clear ChunkStack..')
         self.clearStack()
         # print('Filling ChunkStack...')
-        # print(f"total chunks: {len(self.findMainWindow().curData['chunks'])}, startIndex: {self.startIndex}, startIndex+chunkAmount: {self.startIndex + self.chunkAmount}")
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
             self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
 
@@ -896,11 +889,6 @@ class ChunkStack(QWidget):
         # print('Clearing ChunkStack...')
         for actionIndex in reversed(range(1, self.layout.count())):
             self.layout.itemAt(actionIndex).widget().setParent(None)
-
-    def startIndexChange(self):
-        """track changes in view position"""
-        self.startIndex = self.startIndexSpinBox.value()
-        self.fillStack()
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
@@ -919,31 +907,22 @@ class ChunkStackNavigation(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
-        # print('initializing navBar')
-
         # initial view position:
         # TODO: give this project persistence?
-        # print('navbar parent widget:')
-        # print(self.parentWidget())
-        # self.startIndex = self.parentWidget().startIndex
         self.startIndex = startIndex
-        # print(f'got startIndex: {self.startIndex}')
-        # self.chunkAmount = self.parentWidget().chunkAmount
         self.chunkAmount = chunkAmount
-        # print(f'got chunkAmount: {self.chunkAmount}')
         # info label:
         self.navLabel = QLabel('View beginning at chunk index:')
         # change view position:
         self.startIndexSpinBox = QSpinBox()
-        # print(f"got total chunk number: {len(self.findMainWindow().curData['chunks'])}")
         self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
         if not self.findMainWindow().persistentChunkStackStartIndex == 0:
             self.startIndexSpinBox.setValue(self.findMainWindow().persistentChunkStackStartIndex)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
-
+        # current viewed token total:
         self.currentTokensInView = 0
         self.tokensInViewLabel = QLabel(f'Tokens in current view: {str(self.currentTokensInView)}')
-
+        # count tokens on demand:
         self.countButton = QPushButton('Count')
         self.countButton.clicked.connect(self.updateTokensInView)
 
@@ -952,27 +931,24 @@ class ChunkStackNavigation(QWidget):
         self.layout.addWidget(self.tokensInViewLabel, 0, 2)
         self.layout.addWidget(self.countButton, 0, 3)
 
-        # self.updateTokensInView()
-
-        # print('navbar initialized')
-
     def startIndexChange(self):
         """track changes in view position"""
+        # make sure indexing can't be messed up:
         self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
+        # apply the spinbox value:
         self.startIndex = self.startIndexSpinBox.value()
-        # print('startindex updated in navbar')
-        # print(self.parentWidget())
         self.parentWidget().startIndex = self.startIndex
+        # update the stack:
         self.parentWidget().fillStack()
+        # make view position persistent for session:
         self.findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
 
     def updateTokensInView(self):
+        """recalculate total tokens in view and update display"""
         self.currentTokensInView = 0
         for chunkEdit in range(1, self.parentWidget().layout.count()):
-            # print(self.parentWidget().layout.itemAt(chunkEdit).widget().tokenCount)
             self.currentTokensInView += self.parentWidget().layout.itemAt(chunkEdit).widget().tokenCount
-        # print(self.currentTokensInView)
         self.tokensInViewLabel.setText(f'Tokens in current view: {str(self.currentTokensInView)}')
 
     def findMainWindow(self):
@@ -989,7 +965,6 @@ class ChunkTextEdit(QWidget):
     TODO:
         - token threshold warnings
             - ...define token thresholds and store them
-        - [More]: delete chunk
         - change chunkType edit to dropdown?
             -> chunkTypes defined elsewhere
             - might only work nicely with chunkFile/project handler widget
@@ -1124,12 +1099,13 @@ class ChunkTextEdit(QWidget):
 
     def deleteChunk(self):
         """delete this chunk"""
-        # print(f'deleting chunk at index {self.chunkID}')
         self.findMainWindow().curData['chunks'].pop(self.chunkID)
+        # make sure GUI doesn't break due to bad indexing:
         newEndIndex = self.parentWidget().startIndex + self.parentWidget().chunkAmount
         if newEndIndex > len(self.findMainWindow().curData['chunks']):
             self.parentWidget().startIndex = self.parentWidget().startIndex-1
             self.parentWidget().navBar.startIndex = self.parentWidget().navBar.startIndex-1
+        # update the stack:
         self.parentWidget().fillStack()
 
 
