@@ -2,8 +2,8 @@
 Base module for the GUI
 
 TODO:
-    - figure out license!!!
-    - chunkFile templates?
+    - chunkFile templates
+        - as settings
     - move findMainWindow() outside of spec classes, iE make it static?
 """
 
