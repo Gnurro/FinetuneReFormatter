@@ -867,16 +867,6 @@ class InitialPrep(QWidget):
         if len(curChunk) > 0:
             chunkList.append(curChunk)
 
-
-        # for chunk in chunkList:
-            # print(f'{chunk}///\n')
-            # if chunk[0] == " ":
-                # print('woop!')
-                # chunk = chunk[0:]
-
-
-        # print(chunkList)
-
         fullList = []
 
         if self.makeChunksFileInsertsCheckbox.isChecked():
@@ -886,9 +876,6 @@ class InitialPrep(QWidget):
         else:
             for chunk in chunkList:
                 fullList.append({'text': chunk, 'type': 'sourceText'})
-
-        # chunkListJSON = json.dumps(fullList)
-        # print(chunkListJSON)
 
         # add project data:
         fullData = {'projectData': {'targetTknsPerChunk': self.makeChunksFileTknsPerChunk.value(), 'tagTypeData': {}}, 'chunks': fullList}
