@@ -87,12 +87,7 @@ class MainWindow(QMainWindow):
         # self._createStatusBar()
 
     def setMode(self, modeID):
-        """
-        set/switch to different GUI modes
-
-        TODO:
-            - make more robust?
-        """
+        """set/switch to different GUI modes"""
         # print(f'setMode called with {modeID}')
         if modeID == 'ChunkStack':
             print('Set mode to ChunkStack.')
@@ -196,8 +191,6 @@ class IntroScreen(QWidget):
 
     TODO:
         - settings access
-        - create new 'project'?
-            - ...from chunkFile template?
     """
     def __init__(self):
         super(IntroScreen, self).__init__()
@@ -277,7 +270,7 @@ class SourceInspector(QWidget):
         self.badLineList = []
 
         self.newlinesLabel = QLabel()
-        # TODO: get rid of one of these:
+
         self.newlineCount = self.textField.toPlainText().count('\n')
         self.textLines = self.textField.toPlainText().split('\n')
 
@@ -465,6 +458,10 @@ class SourceInspector(QWidget):
 
 
 class QLineNumberArea(QWidget):
+    """
+    line numbers area for QCodeEditor
+    Source: https://stackoverflow.com/questions/40386194/create-text-area-textedit-with-line-number-in-pyqt/49790764#49790764
+    """
     def __init__(self, editor):
         super().__init__(editor)
         self.codeEditor = editor
@@ -477,6 +474,10 @@ class QLineNumberArea(QWidget):
 
 
 class QCodeEditor(QPlainTextEdit):
+    """
+    plaintext editor with line numbers and more
+    Source: https://stackoverflow.com/questions/40386194/create-text-area-textedit-with-line-number-in-pyqt/49790764#49790764
+    """
     # TODO: credit source!
     def __init__(self, parent=None):
         super().__init__(parent)
