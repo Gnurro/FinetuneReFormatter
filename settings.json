@@ -16,6 +16,8 @@
     ],
     "topTokenAmount": 10,
     "chunking": {
+      "targetTokensPerChunk": 65,
+      "maxTokensPerChunk": 200,
       "placeholderType": "generic",
       "placeholderText": "PLACEHOLDER",
       "autoTokensPerChunkSuffix": true,

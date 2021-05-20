@@ -37,16 +37,8 @@ class MainWindow(QMainWindow):
     TODO:
         - settings
             - centralWidget
-        - overwrite warnings
-            - generic save function
-        - unsaved file QoL
-            - window title indicator
-            - close warning
-            - status bar?
-            - autosaving?
         - save as
         - over-all hotkeys/shortcuts
-            - saving
             - switching modes
         - mode state persistence
         - CLI/direct file loading?
@@ -87,6 +79,8 @@ class MainWindow(QMainWindow):
         self.allowedModes = []
         # actual, temporary data edited:
         self.curData = ''
+        # file saving tracker:
+        self.dataIsSaved = True
         # mode value persistence:
         self.persistentChunkStackStartIndex = 0
         # intro screen showing on start:
@@ -126,7 +120,6 @@ class MainWindow(QMainWindow):
         file selection, setting allowed modes and loading
 
         TODO:
-            - warnings for wrong type in GUI
             - allowed file types in QtFileDialog?
             - UTF-8 conversion?
         """
@@ -160,6 +153,19 @@ class MainWindow(QMainWindow):
                 outData.write(json.dumps(self.curData))
             else:
                 outData.write(self.curData)
+        self.dataIsSaved = True
+        self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+
+    def toggleFileUnsaved(self):
+        print('data is not saved')
+        self.dataIsSaved = False
+        self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}*')
+
+    def closeEvent(self, event):
+        if not self.dataIsSaved:
+            unsavedDataWarnBox = QMessageBox.question(self, 'Unsaved Data Warning', f'Your current data has unsaved changes!', QMessageBox.Save | QMessageBox.Ignore, QMessageBox.Save)
+            if unsavedDataWarnBox == QMessageBox.Save:
+                self.saveCurFile()
 
     def _createMenu(self):
         self.topMenu = self.menuBar()
@@ -356,10 +362,6 @@ class SourceInspector(QWidget):
     def countBadLines(self):
         """
         count 'bad lines'/newlines that might be detrimental for finetuning
-
-        TODO:
-            - fix NoDoubles mode
-                - use index to go through textLines
         """
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
@@ -481,6 +483,7 @@ class SourceInspector(QWidget):
         self.checkWarnables()
         # update the cached text at toplevel:
         self.findMainWindow().curData = self.textField.toPlainText()
+        self.findMainWindow().toggleFileUnsaved()
 
     def checkWarnables(self):
         """
@@ -611,7 +614,7 @@ class InitialPrep(QWidget):
                 - headers
             - wiki fixes from other prep scripts?
         - more chunkfile creation options
-            - more placeholder options
+            - more placeholder options?
             - low/high token thresholds
             - additional metadata?
             - separate mode/(central)widget?
@@ -650,7 +653,7 @@ class InitialPrep(QWidget):
         self.tokenDistributionButton = QPushButton('Calculate token distribution')
         self.tokenDistributionButton.setEnabled(False)
         self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
-
+        # sentence list:
         # TODO: figure out if this is even useful:
         self.chopSentencesButton = QPushButton('Split into sentences and save')
         self.chopSentencesButton.clicked.connect(self.exportSentenceList)
@@ -662,11 +665,15 @@ class InitialPrep(QWidget):
         self.makeChunksFileTknsPerChunk = QSpinBox()
         self.makeChunksFileTknsPerChunk.editingFinished.connect(self.updateTokensPerChunk)
         self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
+        if self.findMainWindow().settings:
+            self.makeChunksFileTknsPerChunk.setValue(self.findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'])
         self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
+        if self.findMainWindow().settings:
+            self.makeChunksFileTknsPerChunk.setMaximum(self.findMainWindow().settings['InitialPrep']['chunking']['maxTokensPerChunk'])
         # placeholder chunks insertion:
         self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
         # placeholder chunk interval:
-        # TODO: add this:
+        # TODO: add this?
         # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
         # self.makeChunksFileInsertsInterval = QSpinBox()
         # self.makeChunksFileInsertsInterval.setMinimum(2)
