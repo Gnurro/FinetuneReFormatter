@@ -16,10 +16,10 @@
     ],
     "topTokenAmount": 10,
     "chunking": {
-      "targetTokensPerChunk": 65,
-      "maxTokensPerChunk": 200,
-      "placeholderType": "generic",
-      "placeholderText": "PLACEHOLDER",
+      "targetTokensPerChunk": 30,
+      "maxTokensPerChunk": 60,
+      "placeholderType": "playerInput",
+      "placeholderText": "act",
       "autoTokensPerChunkSuffix": true,
       "chunkFileSuffix": "tknChunks"
     }
