@@ -260,6 +260,7 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
+        - fix flaw navigation going 'one too far' after newline removal
         - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
@@ -617,7 +618,6 @@ class InitialPrep(QWidget):
         - add 'add placeholder chunks' state to settings
         - 'save chunking settings' button
         - more quick utilities:
-            - double newline removal
             - leading/trailing spaces removal
             - PDF export issue fixes
                 - block layout
@@ -626,7 +626,6 @@ class InitialPrep(QWidget):
             - wiki fixes from other prep scripts?
         - re-chunk adventure logs
         - more chunkfile creation options
-            - more placeholder options?
             - low/high token thresholds
             - additional metadata?
             - separate mode/(central)widget?
