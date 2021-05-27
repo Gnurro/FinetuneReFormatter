@@ -35,6 +35,9 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO:
+        - better file opening
+            - fix issues
+            - UTF-8 conversion?
         - settings
             - centralWidget
         - save as
@@ -123,6 +126,7 @@ class MainWindow(QMainWindow):
             - UTF-8 conversion?
         """
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
+        print(self.curFileInfo)
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
@@ -144,7 +148,7 @@ class MainWindow(QMainWindow):
         else:
             # print('File type of selected file is not compatible!')
             self.setWindowTitle(f'Gnurros FinetuneReFormatter')
-            QMessageBox.about(self, 'Error', f'File type of selected file ({self.curFileType}) is not compatible!')
+            QMessageBox.about(self, 'Error', f'File type ({self.curFileType}) of selected file ({self.curFileType}) is not compatible!')
 
     def saveCurFile(self):
         with open(self.curFilePath, 'w', encoding='UTF-8') as outData:
@@ -588,7 +592,8 @@ class QCodeEditor(QPlainTextEdit):
             if block.isVisible() and (bottom >= event.rect().top()):
                 number = str(blockNumber + 1)
                 painter.setPen(Qt.black)
-                painter.drawText(0, top, self.lineNumberArea.width(), height, Qt.AlignRight, number)
+                # painter.drawText(0, top, self.lineNumberArea.width(), height, Qt.AlignRight, number)
+                painter.drawText(0, int(top), self.lineNumberArea.width(), height, Qt.AlignRight, number)
 
             block = block.next()
             top = bottom
@@ -604,6 +609,7 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
+        - 'save chunking settings' button
         - more quick utilities:
             - double newline removal
             - leading/trailing spaces removal
@@ -612,6 +618,7 @@ class InitialPrep(QWidget):
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
+        - re-chunk adventure logs
         - more chunkfile creation options
             - more placeholder options?
             - low/high token thresholds
@@ -701,16 +708,25 @@ class InitialPrep(QWidget):
         self.makeChunksFileSuffix = QLineEdit(self.makeChunksFileSuffixString)
         self.makeChunksButton = QPushButton('Create chunks and save')
         self.makeChunksButton.clicked.connect(self.exportChunks)
+        # stats and token distribution export:
+        self.exportStatsAndTknDistButton = QPushButton('Export statistics')
+        self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
+        self.exportStatsAndTknDistButton.setEnabled(False)
         # one-button fixes:
         self.miscPrepLabel = QLabel('<b>Miscellaneous fixes:</b>')
         # remove spaces at line ends:
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
+        # remove double newlines:
+        self.doubleNewlineRemoveButton = QPushButton('Remove double newlines')
+        self.doubleNewlineRemoveButton.clicked.connect(self.doubleNewlineRemove)
+
         # get basic statistics:
         self.getDataStats()
 
         self.layout.addWidget(self.tokenizeButton, 0, 0)
         self.layout.addWidget(self.tokenDistributionButton, 0, 1)
+        self.layout.addWidget(self.exportStatsAndTknDistButton, 0, 2)
 
         self.layout.addWidget(self.dataStatsLabel, 1, 0)
         self.layout.addWidget(self.tokenDistLabel, 1, 1)
@@ -737,6 +753,7 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.miscPrepLabel, 7, 0)
 
         self.layout.addWidget(self.lineEndSpaceRemoveButton, 8, 0)
+        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 1)
 
     def getDataStats(self):
         # characters:
@@ -815,6 +832,30 @@ class InitialPrep(QWidget):
 
         # disable button to avoid crashes:
         self.tokenDistributionButton.setEnabled(False)
+        self.exportStatsAndTknDistButton.setEnabled(True)
+
+    def exportStatsAndTknDist(self):
+        # exports data statistics
+        decodedTokenDist = []
+        for tokenFrequency in self.tokenDistribution:
+            for key, value in fixEncodes.items():
+                if value == tokenFrequency[0]:
+                    curDecodeToken = key
+            decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
+        statsData = {
+            'counts': {
+                'characters': self.curCharCount,
+                'words': self.curWordCount,
+                'lines': self.curLineCount,
+                'sentences': len(self.sentences),
+                'tokens': self.tokenCount,
+                'uniqueTokens': self.uniqueTokenCount,
+            },
+            'tokenDistribution': decodedTokenDist
+        }
+        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
+                  'w', encoding='utf-8') as statsOutFile:
+            statsOutFile.write(json.dumps(statsData))
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
@@ -909,6 +950,9 @@ class InitialPrep(QWidget):
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
+
+    def doubleNewlineRemove(self):
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', '\n')
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
