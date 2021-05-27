@@ -126,18 +126,21 @@ class MainWindow(QMainWindow):
             - UTF-8 conversion?
         """
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
-        print(self.curFileInfo)
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
-        self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         self.curFileType = self.curFilePath.split('.')[1]
         if self.curFileType == 'txt':
-            print('Current file type is plaintext, allowing appropriate modes...')
-            self.allowedModes = ['InitialPrep', 'SourceInspector']
-            self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
-            self.setMode('SourceInspector')
-            # self.setMode('InitialPrep')
-            self._createMenu()
+            try:
+                self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
+            except:
+                QMessageBox.about(self, 'Error', f'Encoding of selected file ({self.curFileInfo[0]}) is not compatible!')
+            else:
+                print('Current file type is plaintext, allowing appropriate modes...')
+                self.allowedModes = ['InitialPrep', 'SourceInspector']
+                self.setMode('SourceInspector')
+                # self.setMode('InitialPrep')
+                self._createMenu()
+                self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         elif self.curFileType == 'json':
             print('Current file type is JSON, allowing appropriate modes...')
             # print(self.curData)
@@ -145,10 +148,11 @@ class MainWindow(QMainWindow):
             self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
             self.setMode('ChunkStack')
             self._createMenu()
+            self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         else:
             # print('File type of selected file is not compatible!')
             self.setWindowTitle(f'Gnurros FinetuneReFormatter')
-            QMessageBox.about(self, 'Error', f'File type ({self.curFileType}) of selected file ({self.curFileType}) is not compatible!')
+            QMessageBox.about(self, 'Error', f'File type ({self.curFileType}) of selected file ({self.curFileInfo[0]}) is not compatible!')
 
     def saveCurFile(self):
         with open(self.curFilePath, 'w', encoding='UTF-8') as outData:
