@@ -343,7 +343,7 @@ class SourceInspector(QWidget):
 
         self.layout.addWidget(self.textField, 1, 0, 1, 8)
 
-        self.layout.addWidget(self.warningsLabel, 2, 0)
+        # self.layout.addWidget(self.warningsLabel, 2, 0)
 
     def tokenCountToggle(self):
         """switch realtime encoding/token count on and off"""
