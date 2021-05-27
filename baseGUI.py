@@ -613,6 +613,8 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
+        - unsaved file indicator after QuickFixes
+        - add 'add placeholder chunks' state to settings
         - 'save chunking settings' button
         - more quick utilities:
             - double newline removal
