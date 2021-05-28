@@ -162,7 +162,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
 
     def toggleFileUnsaved(self):
-        print('data is not saved')
+        # print('data is not saved')
         self.dataIsSaved = False
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}*')
 
@@ -371,6 +371,7 @@ class SourceInspector(QWidget):
         """
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
+        priorBadLineCount = self.badLineCount
         self.badLineCount = 0
         # list of strings that are proper ends of lines/end sentences:
         lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
@@ -411,9 +412,17 @@ class SourceInspector(QWidget):
             self.badLineList.append(lineIndex)
         # update GUI newline info display and button interactivity:
         self.newlinesLabel.setText(f'Newlines: {str(self.newlineCount)} Bad newlines: {str(self.badLineCount)}')
+
+        if priorBadLineCount > self.badLineCount > 0:
+            # print('there are less bad lines now!')
+            self.curIssue -= 1
+
         if self.badLineCount == 0:
             self.issueBrowseLabel.setText(f'{str(self.curIssue)}/{str(self.badLineCount)}')
             self.nextBadLineButton.setEnabled(False)
+        # elif self.curIssue <= -1:
+            # self.curIssue = 0
+            # self.issueBrowseLabel.setText(f'{str(self.curIssue)}/{str(self.badLineCount)}')
         else:
             self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
             self.nextBadLineButton.setEnabled(True)
@@ -436,6 +445,8 @@ class SourceInspector(QWidget):
         if self.curIssue > 0:
             self.curIssue -= 1
             self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
+            self.findBadLines()
+        elif self.curIssue == 0:
             self.findBadLines()
         elif self.badLineCount == 1:
             self.findBadLines()
