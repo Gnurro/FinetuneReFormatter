@@ -16,7 +16,7 @@
     ],
     "topTokenAmount": 10,
     "chunking": {
-      "targetTokensPerChunk": 30,
+      "targetTokensPerChunk": 40,
       "maxTokensPerChunk": 60,
       "placeholderType": "playerInput",
       "placeholderText": "act",
