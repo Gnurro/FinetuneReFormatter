@@ -1021,7 +1021,12 @@ class ChunkStack(QWidget):
 
 
 class ChunkStackNavigation(QWidget):
-    """navigation bar for the ChunkStack"""
+    """
+    navigation bar for the ChunkStack
+
+    TODO:
+        - add keyboard shortcuts
+    """
     def __init__(self, startIndex, chunkAmount):
         super(ChunkStackNavigation, self).__init__()
 
