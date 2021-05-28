@@ -258,7 +258,6 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
-        - fix flaw navigation going 'one too far' after newline removal
         - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
@@ -324,7 +323,6 @@ class SourceInspector(QWidget):
         # self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
 
         # misc warnings:
-        # TODO: on-demand warning check?
         self.warningsLabel = QLabel('Warnings:')
         # self.warningsLabel.setText('Warnings:')
         self.checkWarnables()
@@ -981,7 +979,9 @@ class ChunkStack(QWidget):
     A list of consecutive chunks in the form of ChunkTextEdits
 
     TODO:
+        - add unsaved file handling
         - make navigation more convenient
+            - keyboard shortcuts
             - Buttons: 'scrolling'?
         - make this cover the approximate context window?
             - make chunk widgets more compact
@@ -1289,6 +1289,7 @@ class ChunkCombiner(QWidget):
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
 
     TODO:
+        - add unsaved file handling
         - export file dialog?
         - turn this into chunkFile handler widget?
     """
@@ -1422,7 +1423,12 @@ class TagTypeStack(QWidget):
 
 
 class TagTypeHolder(QWidget):
-    """holds single chunk type handling"""
+    """
+    holds single chunk type handling
+
+    TODO:
+        - change (not saved) note to (not defined)
+    """
     def __init__(self, tagType):
         super(TagTypeHolder, self).__init__()
 
