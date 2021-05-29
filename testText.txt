@@ -1,2 +1,0 @@
-phone phone
-camera camera
