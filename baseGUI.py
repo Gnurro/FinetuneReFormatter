@@ -621,7 +621,6 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
-        - unsaved file indicator after QuickFixes
         - add 'add placeholder chunks' state to settings
         - 'save chunking settings' button
         - more quick utilities:
@@ -962,9 +961,11 @@ class InitialPrep(QWidget):
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
+        self.findMainWindow().toggleFileUnsaved()
 
     def doubleNewlineRemove(self):
         self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', '\n')
+        self.findMainWindow().toggleFileUnsaved()
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
@@ -1198,6 +1199,7 @@ class ChunkTextEdit(QWidget):
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
         self.findMainWindow().curData['chunks'][self.chunkID]['text'] = self.textField.toPlainText()
+        self.findMainWindow().toggleFileUnsaved()
 
     def spliceAbove(self):
         """add a chunk above this chunk"""
@@ -1208,6 +1210,7 @@ class ChunkTextEdit(QWidget):
             insertChunk = {'text': insertChunkText, 'type': insertChunkType}
         self.findMainWindow().curData['chunks'].insert(self.chunkID, insertChunk)
         self.parentWidget().fillStack()
+        self.findMainWindow().toggleFileUnsaved()
 
     def spliceBelow(self):
         """add a chunk above this chunk"""
@@ -1218,6 +1221,7 @@ class ChunkTextEdit(QWidget):
             insertChunk = {'text': insertChunkText, 'type': insertChunkType}
         self.findMainWindow().curData['chunks'].insert(self.chunkID+1, insertChunk)
         self.parentWidget().fillStack()
+        self.findMainWindow().toggleFileUnsaved()
 
     def editActionType(self):
         """toggle type tag editing"""
@@ -1231,10 +1235,12 @@ class ChunkTextEdit(QWidget):
     def updateType(self):
         """update chunk type tag in working data"""
         self.findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
+        self.findMainWindow().toggleFileUnsaved()
 
     def deleteChunk(self):
         """delete this chunk"""
         self.findMainWindow().curData['chunks'].pop(self.chunkID)
+        self.findMainWindow().toggleFileUnsaved()
         # make sure GUI doesn't break due to bad indexing:
         newEndIndex = self.parentWidget().startIndex + self.parentWidget().chunkAmount
         if newEndIndex > len(self.findMainWindow().curData['chunks']):
@@ -1289,7 +1295,6 @@ class ChunkCombiner(QWidget):
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
 
     TODO:
-        - add unsaved file handling
         - export file dialog?
         - turn this into chunkFile handler widget?
     """
@@ -1441,13 +1446,17 @@ class TagTypeHolder(QWidget):
         self.tagTypeSaveWarnLabel = QLabel('')
 
         self.tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
+        self.tagTypeFrontNewlineCheckbox.clicked.connect(self.dataChanged)
         self.tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
+        self.tagTypeBackNewlineCheckbox.clicked.connect(self.dataChanged)
 
         self.tagTypePrefixLabel = QLabel('Prefix:')
         self.tagTypePrefix = QLineEdit()
+        self.tagTypePrefix.textChanged.connect(self.dataChanged)
 
         self.tagTypeSuffixLabel = QLabel('Suffix:')
         self.tagTypeSuffix = QLineEdit()
+        self.tagTypeSuffix.textChanged.connect(self.dataChanged)
 
         if tagType in self.findMainWindow().curData['projectData']['tagTypeData'].keys():
             self.tagTypeSaveWarnLabel.setText('')
@@ -1478,6 +1487,9 @@ class TagTypeHolder(QWidget):
         prefix = self.tagTypePrefix.text()
         suffix = self.tagTypeSuffix.text()
         return outTagType, [preNewlineBool, postNewlineBool, prefix, suffix]
+
+    def dataChanged(self):
+        self.findMainWindow().toggleFileUnsaved()
 
     def findMainWindow(self):
         for widget in app.topLevelWidgets():
