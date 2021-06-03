@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
-        self.curFileType = self.curFilePath.split('.')[1]
+        self.curFileType = self.curFilePath.split('.')[-1]
         if self.curFileType == 'txt':
             try:
                 self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
