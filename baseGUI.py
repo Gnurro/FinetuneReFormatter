@@ -122,13 +122,14 @@ class MainWindow(QMainWindow):
 
     def switchMode(self):
         """quickly switch between GUI modes"""
+        print(f'current mode:{self.curMode}')
         if self.curMode == 'ChunkStack':
             self.setMode('ChunkCombiner')
-        if self.curMode == 'ChunkCombiner':
+        elif self.curMode == 'ChunkCombiner':
             self.setMode('ChunkStack')
-        if self.curMode == 'SourceInspector':
+        elif self.curMode == 'SourceInspector':
             self.setMode('InitialPrep')
-        if self.curMode == 'InitialPrep':
+        elif self.curMode == 'InitialPrep':
             self.setMode('SourceInspector')
 
     def fileSelect(self):
