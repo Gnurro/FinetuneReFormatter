@@ -74,6 +74,8 @@ class MainWindow(QMainWindow):
         self.curFileName = ''
         # currently allowed GUI modes, determined by file type:
         self.allowedModes = []
+        # current mode:
+        self.curMode = 'none'
         # actual, temporary data edited:
         self.curData = ''
         # file saving tracker:
@@ -83,10 +85,12 @@ class MainWindow(QMainWindow):
         # intro screen showing on start:
         InitialIntroScreen = IntroScreen()
         self.setCentralWidget(InitialIntroScreen)
-
+        # save file keyboard shortcut:
         self.fileSaveShortcut = QShortcut(QKeySequence('Ctrl+S'), self)
         self.fileSaveShortcut.activated.connect(self.saveCurFile)
-        # self.fileSelect()
+        # switch mode keyboard shortcut:
+        self.switchModeShortcut = QShortcut(QKeySequence('Ctrl+M'), self)
+        self.switchModeShortcut.activated.connect(self.switchMode)
 
         # self._createToolbar()
 
@@ -97,20 +101,35 @@ class MainWindow(QMainWindow):
         # print(f'setMode called with {modeID}')
         if modeID == 'ChunkStack':
             print('Set mode to ChunkStack.')
+            self.curMode = 'ChunkStack'
             curChunkStack = ChunkStack()
             self.setCentralWidget(curChunkStack)
         if modeID == 'ChunkCombiner':
             print('Set mode to ChunkCombiner.')
+            self.curMode = 'ChunkCombiner'
             curChunkCombiner = ChunkCombiner()
             self.setCentralWidget(curChunkCombiner)
         if modeID == 'SourceInspector':
             print('Set mode to SourceInspector.')
+            self.curMode = 'SourceInspector'
             curSourceInspector = SourceInspector()
             self.setCentralWidget(curSourceInspector)
         if modeID == 'InitialPrep':
             print('Set mode to InitialPrep.')
+            self.curMode = 'InitialPrep'
             curInitialPrep = InitialPrep()
             self.setCentralWidget(curInitialPrep)
+
+    def switchMode(self):
+        """quickly switch between GUI modes"""
+        if self.curMode == 'ChunkStack':
+            self.setMode('ChunkCombiner')
+        if self.curMode == 'ChunkCombiner':
+            self.setMode('ChunkStack')
+        if self.curMode == 'SourceInspector':
+            self.setMode('InitialPrep')
+        if self.curMode == 'InitialPrep':
+            self.setMode('SourceInspector')
 
     def fileSelect(self):
         """
@@ -128,8 +147,8 @@ class MainWindow(QMainWindow):
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
                 self.allowedModes = ['InitialPrep', 'SourceInspector']
-                # self.setMode('SourceInspector')
-                self.setMode('InitialPrep')
+                self.setMode('SourceInspector')
+                # self.setMode('InitialPrep')
                 self._createMenu()
                 self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         elif self.curFileType == 'json':
