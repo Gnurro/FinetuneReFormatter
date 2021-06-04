@@ -1043,7 +1043,6 @@ class ChunkStack(QWidget):
 
     TODO:
         - make navigation more convenient
-            - keyboard shortcuts
             - Buttons: 'scrolling'?
         - make this cover the approximate context window?
             - make chunk widgets more compact
@@ -1096,9 +1095,6 @@ class ChunkStack(QWidget):
 class ChunkStackNavigation(QWidget):
     """
     navigation bar for the ChunkStack
-
-    TODO:
-        - add keyboard shortcuts
     """
     def __init__(self, startIndex, chunkAmount):
         super(ChunkStackNavigation, self).__init__()
