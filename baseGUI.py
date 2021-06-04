@@ -623,7 +623,6 @@ class InitialPrep(QWidget):
     TODO:
         - more quick utilities:
             - PDF export issue fixes
-                - block layout
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
@@ -995,14 +994,19 @@ class InitialPrep(QWidget):
 
     def blockLayoutRemove(self):
         """removes block layout GREEDILY"""
-        doubleNewlinePlaceholder = '%%%%%'
-        if self.findMainWindow().settings:
-            doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
-        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
-        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
-        self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
-        self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
-        self.findMainWindow().toggleFileUnsaved()
+        greedyBlockLayoutRemoveWarnBox = QMessageBox.question(self, 'Warning',
+                                                f'Block layout removal is a brute force method and will remove all single linebreaks indiscriminately! '
+                                                f'Double newlines will be preserved.\nClick OK if you are sure that this will not remove too much.',
+                                                QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
+        if greedyBlockLayoutRemoveWarnBox == QMessageBox.Ok:
+            doubleNewlinePlaceholder = '%%%%%'
+            if self.findMainWindow().settings:
+                doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
+            self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
+            self.findMainWindow().toggleFileUnsaved()
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
