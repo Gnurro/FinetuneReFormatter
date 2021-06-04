@@ -116,7 +116,6 @@ class MainWindow(QMainWindow):
         """
         file selection, setting allowed modes and loading
         """
-        # self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
         self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...', filter='txt or ChunkFile (*.txt *.json)')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
