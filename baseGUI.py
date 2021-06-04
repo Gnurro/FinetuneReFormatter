@@ -1004,6 +1004,8 @@ class InitialPrep(QWidget):
                 doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
             self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
             self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
+            # the line above can lead to double spaces if the source has trailing/leading spaces on lines
+            # so those get removed, as well:
             self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
             self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
             self.findMainWindow().toggleFileUnsaved()
