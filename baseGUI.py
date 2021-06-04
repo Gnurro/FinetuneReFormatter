@@ -1042,7 +1042,6 @@ class ChunkStack(QWidget):
     A list of consecutive chunks in the form of ChunkTextEdits
 
     TODO:
-        - add unsaved file handling
         - make navigation more convenient
             - keyboard shortcuts
             - Buttons: 'scrolling'?
@@ -1126,6 +1125,11 @@ class ChunkStackNavigation(QWidget):
         # count tokens on demand:
         self.countButton = QPushButton('Count')
         self.countButton.clicked.connect(self.updateTokensInView)
+        # navigation keyboard shortcuts:
+        self.chunkViewIndexAddShortcut = QShortcut(QKeySequence('Ctrl+Down'), self)
+        self.chunkViewIndexAddShortcut.activated.connect(self.chunkViewIndexAdd)
+        self.chunkViewIndexSubShortcut = QShortcut(QKeySequence('Ctrl+Up'), self)
+        self.chunkViewIndexSubShortcut.activated.connect(self.chunkViewIndexSub)
 
         self.layout.addWidget(self.navLabel, 0, 0)
         self.layout.addWidget(self.startIndexSpinBox, 0, 1)
@@ -1144,6 +1148,16 @@ class ChunkStackNavigation(QWidget):
         # make view position persistent for session:
         self.findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
+
+    def chunkViewIndexAdd(self):
+        """navigation shortcut method adding to startIndex"""
+        if self.startIndexSpinBox.value() + 1 <= len(self.findMainWindow().curData['chunks']) - self.chunkAmount:
+            self.startIndexSpinBox.setValue(self.startIndexSpinBox.value()+1)
+
+    def chunkViewIndexSub(self):
+        """navigation shortcut method subtracting from startIndex"""
+        if self.startIndexSpinBox.value() - 1 >= 0:
+            self.startIndexSpinBox.setValue(self.startIndexSpinBox.value()-1)
 
     def updateTokensInView(self):
         """recalculate total tokens in view and update display"""
