@@ -1164,7 +1164,6 @@ class ChunkTextEdit(QWidget):
     Interactive widget holding a single chunk/action
 
     TODO:
-        - add unsaved edits detection
         - token threshold warnings
             - ...define token thresholds and store them
         - change chunkType edit to dropdown?
