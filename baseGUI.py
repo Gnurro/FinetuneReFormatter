@@ -122,7 +122,6 @@ class MainWindow(QMainWindow):
 
     def switchMode(self):
         """quickly switch between GUI modes"""
-        print(f'current mode:{self.curMode}')
         if self.curMode == 'ChunkStack':
             self.setMode('ChunkCombiner')
         elif self.curMode == 'ChunkCombiner':
