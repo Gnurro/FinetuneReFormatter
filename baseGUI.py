@@ -33,9 +33,6 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO:
-        - better file opening
-            - fix issues
-            - UTF-8 conversion?
         - settings
             - centralWidget
         - save as
@@ -118,12 +115,9 @@ class MainWindow(QMainWindow):
     def fileSelect(self):
         """
         file selection, setting allowed modes and loading
-
-        TODO:
-            - allowed file types in QtFileDialog?
-            - UTF-8 conversion?
         """
-        self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
+        # self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
+        self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...', filter='txt or ChunkFile (*.txt *.json)')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
         self.curFileType = self.curFilePath.split('.')[-1]
@@ -135,8 +129,8 @@ class MainWindow(QMainWindow):
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
                 self.allowedModes = ['InitialPrep', 'SourceInspector']
-                self.setMode('SourceInspector')
-                # self.setMode('InitialPrep')
+                # self.setMode('SourceInspector')
+                self.setMode('InitialPrep')
                 self._createMenu()
                 self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         elif self.curFileType == 'json':
@@ -160,6 +154,13 @@ class MainWindow(QMainWindow):
                 outData.write(self.curData)
         self.dataIsSaved = True
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+
+    def saveSettings(self):
+        if self.settings:
+            with open('./settings.json', 'w', encoding='UTF-8') as settingsFile:
+                outSettings = json.dumps(self.settings)
+                settingsFile.write(outSettings)
+                print('Settings saved to file.')
 
     def toggleFileUnsaved(self):
         # print('data is not saved')
@@ -622,7 +623,6 @@ class InitialPrep(QWidget):
 
     TODO:
         - add 'add placeholder chunks' state to settings
-        - 'save chunking settings' button
         - more quick utilities:
             - leading/trailing spaces removal
             - PDF export issue fixes
@@ -689,6 +689,8 @@ class InitialPrep(QWidget):
             self.makeChunksFileTknsPerChunk.setMaximum(self.findMainWindow().settings['InitialPrep']['chunking']['maxTokensPerChunk'])
         # placeholder chunks insertion:
         self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
+        if self.findMainWindow().settings:
+            self.makeChunksFileInsertsCheckbox.setChecked(self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'])
         # placeholder chunk interval:
         # TODO: add this?
         # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
@@ -719,6 +721,9 @@ class InitialPrep(QWidget):
         self.makeChunksFileSuffix = QLineEdit(self.makeChunksFileSuffixString)
         self.makeChunksButton = QPushButton('Create chunks and save')
         self.makeChunksButton.clicked.connect(self.exportChunks)
+        # save chunking settings button:
+        self.saveChunkingSettingsButton = QPushButton('Save chunking settings')
+        self.saveChunkingSettingsButton.clicked.connect(self.saveChunkingSettings)
         # stats and token distribution export:
         self.exportStatsAndTknDistButton = QPushButton('Export statistics')
         self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
@@ -760,6 +765,7 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.makeChunksFileSuffixLabel, 6, 0)
         self.layout.addWidget(self.makeChunksFileSuffix, 6, 1)
         self.layout.addWidget(self.makeChunksButton, 6, 2)
+        self.layout.addWidget(self.saveChunkingSettingsButton, 6, 3)
 
         self.layout.addWidget(self.miscPrepLabel, 7, 0)
 
@@ -957,6 +963,15 @@ class InitialPrep(QWidget):
             if not self.findMainWindow().settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix']:
                 self.makeChunksFileTknSuffix = f'Chunk file suffix: _'
         self.makeChunksFileSuffixLabel.setText(self.makeChunksFileTknSuffix)
+
+    def saveChunkingSettings(self):
+        if self.findMainWindow().settings:
+            self.findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'] = self.makeChunksFileTknsPerChunk.value()
+            self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'] = self.makeChunksFileInsertsCheckbox.isChecked()
+            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderType'] = self.makeChunksFileInsertsType.text()
+            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderText'] = self.makeChunksFileInsertsText.text()
+            self.findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix'] = self.makeChunksFileSuffix.text()
+            self.findMainWindow().saveSettings()
 
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
