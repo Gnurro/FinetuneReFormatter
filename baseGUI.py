@@ -621,20 +621,18 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
-        - add 'add placeholder chunks' state to settings
         - more quick utilities:
-            - leading/trailing spaces removal
             - PDF export issue fixes
                 - block layout
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
         - re-chunk adventure logs
+            - detect adventure logs first?
+            - proper advlog check?
         - more chunkfile creation options
             - low/high token thresholds
             - additional metadata?
-            - separate mode/(central)widget?
-                - if: better name for this mode
         - file saving dialogs?
     """
     def __init__(self):
@@ -728,13 +726,19 @@ class InitialPrep(QWidget):
         self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
         self.exportStatsAndTknDistButton.setEnabled(False)
         # one-button fixes:
-        self.miscPrepLabel = QLabel('<b>Miscellaneous fixes:</b>')
+        self.miscPrepLabel = QLabel('<b>QuickFixes:</b>')
         # remove spaces at line ends:
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
+        # remove spaces at line starts:
+        self.lineStartSpaceRemoveButton = QPushButton('Remove spaces at line starts')
+        self.lineStartSpaceRemoveButton.clicked.connect(self.lineStartSpaceRemove)
         # remove double newlines:
         self.doubleNewlineRemoveButton = QPushButton('Remove double newlines')
         self.doubleNewlineRemoveButton.clicked.connect(self.doubleNewlineRemove)
+        # remove block layout newlines:
+        self.blockLayoutRemoveButton = QPushButton('Remove block layout')
+        self.blockLayoutRemoveButton.clicked.connect(self.blockLayoutRemove)
 
         # get basic statistics:
         self.getDataStats()
@@ -769,7 +773,9 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.miscPrepLabel, 7, 0)
 
         self.layout.addWidget(self.lineEndSpaceRemoveButton, 8, 0)
-        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 1)
+        self.layout.addWidget(self.lineStartSpaceRemoveButton, 8, 1)
+        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 2)
+        self.layout.addWidget(self.blockLayoutRemoveButton, 8, 3)
 
     def getDataStats(self):
         # characters:
@@ -977,8 +983,25 @@ class InitialPrep(QWidget):
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
         self.findMainWindow().toggleFileUnsaved()
 
+    def lineStartSpaceRemove(self):
+        """removes spaces at line beginnings"""
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n ', '\n')
+        self.findMainWindow().toggleFileUnsaved()
+
     def doubleNewlineRemove(self):
+        """removes double newlines"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', '\n')
+        self.findMainWindow().toggleFileUnsaved()
+
+    def blockLayoutRemove(self):
+        """removes block layout GREEDILY"""
+        doubleNewlinePlaceholder = '%%%%%'
+        if self.findMainWindow().settings:
+            doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
+        self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
         self.findMainWindow().toggleFileUnsaved()
 
     def findMainWindow(self):
