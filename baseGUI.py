@@ -33,9 +33,6 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO:
-        - better file opening
-            - fix issues
-            - UTF-8 conversion?
         - settings
             - centralWidget
         - save as
@@ -77,6 +74,8 @@ class MainWindow(QMainWindow):
         self.curFileName = ''
         # currently allowed GUI modes, determined by file type:
         self.allowedModes = []
+        # current mode:
+        self.curMode = 'none'
         # actual, temporary data edited:
         self.curData = ''
         # file saving tracker:
@@ -86,10 +85,12 @@ class MainWindow(QMainWindow):
         # intro screen showing on start:
         InitialIntroScreen = IntroScreen()
         self.setCentralWidget(InitialIntroScreen)
-
+        # save file keyboard shortcut:
         self.fileSaveShortcut = QShortcut(QKeySequence('Ctrl+S'), self)
         self.fileSaveShortcut.activated.connect(self.saveCurFile)
-        # self.fileSelect()
+        # switch mode keyboard shortcut:
+        self.switchModeShortcut = QShortcut(QKeySequence('Ctrl+M'), self)
+        self.switchModeShortcut.activated.connect(self.switchMode)
 
         # self._createToolbar()
 
@@ -100,38 +101,49 @@ class MainWindow(QMainWindow):
         # print(f'setMode called with {modeID}')
         if modeID == 'ChunkStack':
             print('Set mode to ChunkStack.')
+            self.curMode = 'ChunkStack'
             curChunkStack = ChunkStack()
             self.setCentralWidget(curChunkStack)
         if modeID == 'ChunkCombiner':
             print('Set mode to ChunkCombiner.')
+            self.curMode = 'ChunkCombiner'
             curChunkCombiner = ChunkCombiner()
             self.setCentralWidget(curChunkCombiner)
         if modeID == 'SourceInspector':
             print('Set mode to SourceInspector.')
+            self.curMode = 'SourceInspector'
             curSourceInspector = SourceInspector()
             self.setCentralWidget(curSourceInspector)
         if modeID == 'InitialPrep':
             print('Set mode to InitialPrep.')
+            self.curMode = 'InitialPrep'
             curInitialPrep = InitialPrep()
             self.setCentralWidget(curInitialPrep)
+
+    def switchMode(self):
+        """quickly switch between GUI modes"""
+        if self.curMode == 'ChunkStack':
+            self.setMode('ChunkCombiner')
+        elif self.curMode == 'ChunkCombiner':
+            self.setMode('ChunkStack')
+        elif self.curMode == 'SourceInspector':
+            self.setMode('InitialPrep')
+        elif self.curMode == 'InitialPrep':
+            self.setMode('SourceInspector')
 
     def fileSelect(self):
         """
         file selection, setting allowed modes and loading
-
-        TODO:
-            - allowed file types in QtFileDialog?
-            - UTF-8 conversion?
         """
-        self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...')
+        self.curFileInfo = QFileDialog.getOpenFileName(caption='Open source file...', filter='txt or ChunkFile (*.txt *.json)')
         self.curFilePath = self.curFileInfo[0]
         self.curFileName = self.curFilePath.split('/')[-1]
-        self.curFileType = self.curFilePath.split('.')[1]
+        self.curFileType = self.curFilePath.split('.')[-1]
         if self.curFileType == 'txt':
             try:
                 self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
             except:
-                QMessageBox.about(self, 'Error', f'Encoding of selected file ({self.curFileInfo[0]}) is not compatible!')
+                QMessageBox.about(self, 'Error', f'The selected file ({self.curFileInfo[0]}) is not compatible! Make sure text files are UTF-8.')
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
                 self.allowedModes = ['InitialPrep', 'SourceInspector']
@@ -160,6 +172,13 @@ class MainWindow(QMainWindow):
                 outData.write(self.curData)
         self.dataIsSaved = True
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+
+    def saveSettings(self):
+        if self.settings:
+            with open('./settings.json', 'w', encoding='UTF-8') as settingsFile:
+                outSettings = json.dumps(self.settings)
+                settingsFile.write(outSettings)
+                print('Settings saved to file.')
 
     def toggleFileUnsaved(self):
         # print('data is not saved')
@@ -621,21 +640,17 @@ class InitialPrep(QWidget):
     Utility mode to check raw data statistics and perform simple data preparation
 
     TODO:
-        - add 'add placeholder chunks' state to settings
-        - 'save chunking settings' button
         - more quick utilities:
-            - leading/trailing spaces removal
             - PDF export issue fixes
-                - block layout
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
         - re-chunk adventure logs
+            - detect adventure logs first?
+            - proper advlog check?
         - more chunkfile creation options
             - low/high token thresholds
             - additional metadata?
-            - separate mode/(central)widget?
-                - if: better name for this mode
         - file saving dialogs?
     """
     def __init__(self):
@@ -689,6 +704,8 @@ class InitialPrep(QWidget):
             self.makeChunksFileTknsPerChunk.setMaximum(self.findMainWindow().settings['InitialPrep']['chunking']['maxTokensPerChunk'])
         # placeholder chunks insertion:
         self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
+        if self.findMainWindow().settings:
+            self.makeChunksFileInsertsCheckbox.setChecked(self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'])
         # placeholder chunk interval:
         # TODO: add this?
         # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
@@ -719,18 +736,27 @@ class InitialPrep(QWidget):
         self.makeChunksFileSuffix = QLineEdit(self.makeChunksFileSuffixString)
         self.makeChunksButton = QPushButton('Create chunks and save')
         self.makeChunksButton.clicked.connect(self.exportChunks)
+        # save chunking settings button:
+        self.saveChunkingSettingsButton = QPushButton('Save chunking settings')
+        self.saveChunkingSettingsButton.clicked.connect(self.saveChunkingSettings)
         # stats and token distribution export:
         self.exportStatsAndTknDistButton = QPushButton('Export statistics')
         self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
         self.exportStatsAndTknDistButton.setEnabled(False)
         # one-button fixes:
-        self.miscPrepLabel = QLabel('<b>Miscellaneous fixes:</b>')
+        self.miscPrepLabel = QLabel('<b>QuickFixes:</b>')
         # remove spaces at line ends:
         self.lineEndSpaceRemoveButton = QPushButton('Remove spaces at line ends')
         self.lineEndSpaceRemoveButton.clicked.connect(self.lineEndSpaceRemove)
+        # remove spaces at line starts:
+        self.lineStartSpaceRemoveButton = QPushButton('Remove spaces at line starts')
+        self.lineStartSpaceRemoveButton.clicked.connect(self.lineStartSpaceRemove)
         # remove double newlines:
         self.doubleNewlineRemoveButton = QPushButton('Remove double newlines')
         self.doubleNewlineRemoveButton.clicked.connect(self.doubleNewlineRemove)
+        # remove block layout newlines:
+        self.blockLayoutRemoveButton = QPushButton('Remove block layout')
+        self.blockLayoutRemoveButton.clicked.connect(self.blockLayoutRemove)
 
         # get basic statistics:
         self.getDataStats()
@@ -760,11 +786,14 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.makeChunksFileSuffixLabel, 6, 0)
         self.layout.addWidget(self.makeChunksFileSuffix, 6, 1)
         self.layout.addWidget(self.makeChunksButton, 6, 2)
+        self.layout.addWidget(self.saveChunkingSettingsButton, 6, 3)
 
         self.layout.addWidget(self.miscPrepLabel, 7, 0)
 
         self.layout.addWidget(self.lineEndSpaceRemoveButton, 8, 0)
-        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 1)
+        self.layout.addWidget(self.lineStartSpaceRemoveButton, 8, 1)
+        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 2)
+        self.layout.addWidget(self.blockLayoutRemoveButton, 8, 3)
 
     def getDataStats(self):
         # characters:
@@ -958,14 +987,47 @@ class InitialPrep(QWidget):
                 self.makeChunksFileTknSuffix = f'Chunk file suffix: _'
         self.makeChunksFileSuffixLabel.setText(self.makeChunksFileTknSuffix)
 
+    def saveChunkingSettings(self):
+        if self.findMainWindow().settings:
+            self.findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'] = self.makeChunksFileTknsPerChunk.value()
+            self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'] = self.makeChunksFileInsertsCheckbox.isChecked()
+            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderType'] = self.makeChunksFileInsertsType.text()
+            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderText'] = self.makeChunksFileInsertsText.text()
+            self.findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix'] = self.makeChunksFileSuffix.text()
+            self.findMainWindow().saveSettings()
+
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
         self.findMainWindow().toggleFileUnsaved()
 
+    def lineStartSpaceRemove(self):
+        """removes spaces at line beginnings"""
+        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n ', '\n')
+        self.findMainWindow().toggleFileUnsaved()
+
     def doubleNewlineRemove(self):
+        """removes double newlines"""
         self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', '\n')
         self.findMainWindow().toggleFileUnsaved()
+
+    def blockLayoutRemove(self):
+        """removes block layout GREEDILY"""
+        greedyBlockLayoutRemoveWarnBox = QMessageBox.question(self, 'Warning',
+                                                f'Block layout removal is a brute force method and will remove all single linebreaks indiscriminately! '
+                                                f'Double newlines will be preserved.\nClick OK if you are sure that this will not remove too much.',
+                                                QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
+        if greedyBlockLayoutRemoveWarnBox == QMessageBox.Ok:
+            doubleNewlinePlaceholder = '%%%%%'
+            if self.findMainWindow().settings:
+                doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
+            # the line above can lead to double spaces if the source has trailing/leading spaces on lines
+            # so those get removed, as well:
+            self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
+            self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
+            self.findMainWindow().toggleFileUnsaved()
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
@@ -980,9 +1042,7 @@ class ChunkStack(QWidget):
     A list of consecutive chunks in the form of ChunkTextEdits
 
     TODO:
-        - add unsaved file handling
         - make navigation more convenient
-            - keyboard shortcuts
             - Buttons: 'scrolling'?
         - make this cover the approximate context window?
             - make chunk widgets more compact
@@ -1035,9 +1095,6 @@ class ChunkStack(QWidget):
 class ChunkStackNavigation(QWidget):
     """
     navigation bar for the ChunkStack
-
-    TODO:
-        - add keyboard shortcuts
     """
     def __init__(self, startIndex, chunkAmount):
         super(ChunkStackNavigation, self).__init__()
@@ -1064,6 +1121,11 @@ class ChunkStackNavigation(QWidget):
         # count tokens on demand:
         self.countButton = QPushButton('Count')
         self.countButton.clicked.connect(self.updateTokensInView)
+        # navigation keyboard shortcuts:
+        self.chunkViewIndexAddShortcut = QShortcut(QKeySequence('Ctrl+Down'), self)
+        self.chunkViewIndexAddShortcut.activated.connect(self.chunkViewIndexAdd)
+        self.chunkViewIndexSubShortcut = QShortcut(QKeySequence('Ctrl+Up'), self)
+        self.chunkViewIndexSubShortcut.activated.connect(self.chunkViewIndexSub)
 
         self.layout.addWidget(self.navLabel, 0, 0)
         self.layout.addWidget(self.startIndexSpinBox, 0, 1)
@@ -1082,6 +1144,16 @@ class ChunkStackNavigation(QWidget):
         # make view position persistent for session:
         self.findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
+
+    def chunkViewIndexAdd(self):
+        """navigation shortcut method adding to startIndex"""
+        if self.startIndexSpinBox.value() + 1 <= len(self.findMainWindow().curData['chunks']) - self.chunkAmount:
+            self.startIndexSpinBox.setValue(self.startIndexSpinBox.value()+1)
+
+    def chunkViewIndexSub(self):
+        """navigation shortcut method subtracting from startIndex"""
+        if self.startIndexSpinBox.value() - 1 >= 0:
+            self.startIndexSpinBox.setValue(self.startIndexSpinBox.value()-1)
 
     def updateTokensInView(self):
         """recalculate total tokens in view and update display"""
@@ -1102,7 +1174,6 @@ class ChunkTextEdit(QWidget):
     Interactive widget holding a single chunk/action
 
     TODO:
-        - add unsaved edits detection
         - token threshold warnings
             - ...define token thresholds and store them
         - change chunkType edit to dropdown?
