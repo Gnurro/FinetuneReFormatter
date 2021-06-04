@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
             try:
                 self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
             except:
-                QMessageBox.about(self, 'Error', f'Encoding of selected file ({self.curFileInfo[0]}) is not compatible!')
+                QMessageBox.about(self, 'Error', f'The selected file ({self.curFileInfo[0]}) is not compatible! Make sure text files are UTF-8.')
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
                 self.allowedModes = ['InitialPrep', 'SourceInspector']
