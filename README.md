@@ -6,7 +6,7 @@
 Run baseGUI.py to open the GUI.  
 Select a file to inspect/edit. Currently works on .txt UTF-8 plaintext files and rolling-context .json files.  
 
-[Visit the wiki for more info and a HowTo](https://github.com/Gnurro/FinetuneReFormatter/wiki/)
+### [Visit the wiki for more info and a HowTo](https://github.com/Gnurro/FinetuneReFormatter/wiki/)
 
 ### Info:
 Written in Python 3.9  
