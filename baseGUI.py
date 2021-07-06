@@ -2,10 +2,9 @@
 Base module for the GUI
 
 TODO:
-    - add verb counter
-        - POS tagging?
     - add stats display mode
     - lowercase UPPERCASE chapter intros?
+    - check for lines beginning with lowercase
     -
     - add continuation type tagging to make data more useful for research as well?
     - move findMainWindow() outside of spec classes, iE make it static!
@@ -23,6 +22,8 @@ from GPT2.encoder import get_encoder
 import tokensToUTF
 
 import nltk
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
@@ -679,6 +680,8 @@ class InitialPrep(QWidget):
         self.uniqueTokenCount = 0
         self.tokenDistribution = {}
 
+        self.taggedPOS = []
+
         self.dataStatsLabel = QLabel('Stats:')
         self.dataStatsLabel.setAlignment(Qt.AlignTop)
         # placeholder string for sentence endings:
@@ -839,6 +842,8 @@ class InitialPrep(QWidget):
 
         self.getLineLengths()
 
+        self.getPOS()
+
     def getWordDistribution(self):
         for word in self.words:
             if word not in self.uniqueWords:
@@ -859,6 +864,15 @@ class InitialPrep(QWidget):
             self.curLineLengths.append(len(line))
 
         print(self.curLineLengths)
+
+    def getPOS(self):
+        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(self.findMainWindow().curData))
+        # print(self.taggedPOS)
+        self.verbCount = 0
+        for word, pos in self.taggedPOS:
+            if 'VB' in pos:
+                self.verbCount += 1
+        print(f"Number of verbs: {self.verbCount}")
 
 
     def tokenizeData(self):
@@ -923,6 +937,7 @@ class InitialPrep(QWidget):
                 'words': self.curWordCount,
                 'lines': self.curLineCount,
                 'sentences': len(self.sentences),
+                'verbs': self.verbCount,
                 'tokens': self.tokenCount,
                 'uniqueTokens': self.uniqueTokenCount,
             }
