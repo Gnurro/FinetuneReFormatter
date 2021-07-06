@@ -2,6 +2,12 @@
 Base module for the GUI
 
 TODO:
+    - add verb counter
+        - POS tagging?
+    - word distribution
+    - add line length checker
+    -
+    - add continuation type tagging to make data more useful for research as well!
     - move findMainWindow() outside of spec classes, iE make it static?
 """
 
@@ -677,6 +683,10 @@ class InitialPrep(QWidget):
         if self.findMainWindow().settings:
             self.sentenceEndPlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
         self.sentences = []
+        # word distribution button:
+        self.wordDistribution = {}
+        self.wordDistButton = QPushButton('Calculate word distribution')
+        self.wordDistButton.clicked.connect(self.getWordDistribution)
         # tokenize button:
         self.tokenizeButton = QPushButton('Tokenize data')
         self.tokenizeButton.clicked.connect(self.tokenizeData)
@@ -742,7 +752,7 @@ class InitialPrep(QWidget):
         # stats and token distribution export:
         self.exportStatsAndTknDistButton = QPushButton('Export statistics')
         self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
-        self.exportStatsAndTknDistButton.setEnabled(False)
+        # self.exportStatsAndTknDistButton.setEnabled(False)
         # one-button fixes:
         self.miscPrepLabel = QLabel('<b>QuickFixes:</b>')
         # remove spaces at line ends:
@@ -761,9 +771,10 @@ class InitialPrep(QWidget):
         # get basic statistics:
         self.getDataStats()
 
-        self.layout.addWidget(self.tokenizeButton, 0, 0)
-        self.layout.addWidget(self.tokenDistributionButton, 0, 1)
-        self.layout.addWidget(self.exportStatsAndTknDistButton, 0, 2)
+        self.layout.addWidget(self.wordDistButton, 0, 0)
+        self.layout.addWidget(self.tokenizeButton, 0, 1)
+        self.layout.addWidget(self.tokenDistributionButton, 0, 2)
+        self.layout.addWidget(self.exportStatsAndTknDistButton, 0, 3)
 
         self.layout.addWidget(self.dataStatsLabel, 1, 0)
         self.layout.addWidget(self.tokenDistLabel, 1, 1)
@@ -799,7 +810,8 @@ class InitialPrep(QWidget):
         # characters:
         self.curCharCount = len(self.findMainWindow().curData)
         # words:
-        self.curWordCount = len(self.findMainWindow().curData.split())
+        self.words = self.findMainWindow().curData.split()
+        self.curWordCount = len(self.words)
         # lines:
         self.curLines = self.findMainWindow().curData.split('\n')
         self.curLineCount = len(self.curLines)
@@ -819,6 +831,23 @@ class InitialPrep(QWidget):
                                     f'Number of sentences (approximately): {len(self.sentences)}\n'
                                     f'Number of tokens: {self.tokenCount}\n'
                                     f'Number of unique tokens: {self.uniqueTokenCount}')
+
+    def getWordDistribution(self):
+        self.uniqueWords = []
+
+        for word in self.words:
+            if word not in self.uniqueWords:
+                self.uniqueWords.append(word)
+            if word not in self.wordDistribution.keys():
+                self.wordDistribution[word] = 1
+            elif word in self.wordDistribution.keys():
+                self.wordDistribution[word] += 1
+
+        self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
+
+        self.uniqueWordCount = len(self.uniqueWords)
+
+        print(self.wordDistribution)
 
     def tokenizeData(self):
         self.tokens = encoder.encode(self.findMainWindow().curData)
@@ -872,7 +901,7 @@ class InitialPrep(QWidget):
 
         # disable button to avoid crashes:
         self.tokenDistributionButton.setEnabled(False)
-        self.exportStatsAndTknDistButton.setEnabled(True)
+        # self.exportStatsAndTknDistButton.setEnabled(True)
 
     def exportStatsAndTknDist(self):
         # exports data statistics
@@ -893,6 +922,8 @@ class InitialPrep(QWidget):
             },
             'tokenDistribution': decodedTokenDist
         }
+        if self.wordDistribution:
+            statsData['wordDistribution'] = self.wordDistribution
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
                   'w', encoding='utf-8') as statsOutFile:
             statsOutFile.write(json.dumps(statsData))
@@ -1176,8 +1207,8 @@ class ChunkTextEdit(QWidget):
     TODO:
         - token threshold warnings
             - ...define token thresholds and store them
-        - change chunkType edit to dropdown?
-            -> chunkTypes defined elsewhere
+        - change chunkType edit to dropdown
+            - chunkTypes defined elsewhere
             - might only work nicely with chunkFile/project handler widget
         - make more compact version
     """
@@ -1366,8 +1397,12 @@ class ChunkCombiner(QWidget):
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
 
     TODO:
+        - add proper chunk type toolset
+            - continuation types!
+                - set up basic set of continuation types
+            - move type defs here fully
+                - then turn ChunkStack type tag edit into dropdown
         - export file dialog?
-        - turn this into chunkFile handler widget?
     """
     def __init__(self):
         super(ChunkCombiner, self).__init__()
@@ -1477,7 +1512,12 @@ class ChunkCombiner(QWidget):
 
 
 class TagTypeStack(QWidget):
-    """widget to hold list of chunk types and keep everything interactive"""
+    """
+    widget to hold list of chunk types and keep everything interactive
+
+    TODO:
+        - 'add type' button
+    """
     def __init__(self, tagTypes):
         super(TagTypeStack, self).__init__()
 
@@ -1504,6 +1544,7 @@ class TagTypeHolder(QWidget):
 
     TODO:
         - change (not saved) note to (not defined)
+        - type notes (for continuation type tagging)
     """
     def __init__(self, tagType):
         super(TagTypeHolder, self).__init__()
