@@ -4,11 +4,11 @@ Base module for the GUI
 TODO:
     - add verb counter
         - POS tagging?
-    - word distribution
-    - add line length checker
+    - add stats display mode
+    - lowercase UPPERCASE chapter intros?
     -
-    - add continuation type tagging to make data more useful for research as well!
-    - move findMainWindow() outside of spec classes, iE make it static?
+    - add continuation type tagging to make data more useful for research as well?
+    - move findMainWindow() outside of spec classes, iE make it static!
 """
 
 import sys
@@ -21,6 +21,8 @@ import re
 from GPT2.encoder import get_encoder
 
 import tokensToUTF
+
+import nltk
 
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
@@ -670,6 +672,7 @@ class InitialPrep(QWidget):
         self.curWordCount = 0
         self.curLines = []
         self.curLineCount = 0
+        self.curLineLengths = []
         self.tokens = []
         self.tokenCount = 0
         self.uniqueTokens = []
@@ -683,8 +686,10 @@ class InitialPrep(QWidget):
         if self.findMainWindow().settings:
             self.sentenceEndPlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
         self.sentences = []
-        # word distribution button:
+        # word distribution:
+        self.uniqueWords = []
         self.wordDistribution = {}
+        # word distribution button:
         self.wordDistButton = QPushButton('Calculate word distribution')
         self.wordDistButton.clicked.connect(self.getWordDistribution)
         # tokenize button:
@@ -832,9 +837,9 @@ class InitialPrep(QWidget):
                                     f'Number of tokens: {self.tokenCount}\n'
                                     f'Number of unique tokens: {self.uniqueTokenCount}')
 
-    def getWordDistribution(self):
-        self.uniqueWords = []
+        self.getLineLengths()
 
+    def getWordDistribution(self):
         for word in self.words:
             if word not in self.uniqueWords:
                 self.uniqueWords.append(word)
@@ -848,6 +853,13 @@ class InitialPrep(QWidget):
         self.uniqueWordCount = len(self.uniqueWords)
 
         print(self.wordDistribution)
+
+    def getLineLengths(self):
+        for line in self.curLines:
+            self.curLineLengths.append(len(line))
+
+        print(self.curLineLengths)
+
 
     def tokenizeData(self):
         self.tokens = encoder.encode(self.findMainWindow().curData)
@@ -905,12 +917,6 @@ class InitialPrep(QWidget):
 
     def exportStatsAndTknDist(self):
         # exports data statistics
-        decodedTokenDist = []
-        for tokenFrequency in self.tokenDistribution:
-            for key, value in fixEncodes.items():
-                if value == tokenFrequency[0]:
-                    curDecodeToken = key
-            decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
         statsData = {
             'counts': {
                 'characters': self.curCharCount,
@@ -919,11 +925,22 @@ class InitialPrep(QWidget):
                 'sentences': len(self.sentences),
                 'tokens': self.tokenCount,
                 'uniqueTokens': self.uniqueTokenCount,
-            },
-            'tokenDistribution': decodedTokenDist
+            }
         }
+        if self.tokenDistribution:
+
+            decodedTokenDist = []
+            for tokenFrequency in self.tokenDistribution:
+                for key, value in fixEncodes.items():
+                    if value == tokenFrequency[0]:
+                        curDecodeToken = key
+                decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
+
+            statsData['tokenDistribution'] = decodedTokenDist
         if self.wordDistribution:
             statsData['wordDistribution'] = self.wordDistribution
+        if self.curLineLengths:
+            statsData['lineLengths'] = self.curLineLengths
         with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
                   'w', encoding='utf-8') as statsOutFile:
             statsOutFile.write(json.dumps(statsData))
