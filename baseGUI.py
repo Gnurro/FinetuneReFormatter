@@ -6,6 +6,8 @@ TODO:
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
     -
+    - Fix empty file InLine mode crash
+    -
     - add continuation type tagging to make data more useful for research as well?
     - move findMainWindow() outside of spec classes, iE make it static!
 """
