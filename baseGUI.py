@@ -990,12 +990,16 @@ class InitialPrep(QWidget):
 
             if curTokenCount > self.makeChunksFileTknsPerChunk.value():
                 # print("-> Hit chunk token cap! Starting new chunk...")
-                if curChunk[-1] == " ":
-                    curChunk = curChunk[:-1]
-                if curChunk[0] == " ":
-                    curChunk = curChunk[1:]
+                # if curChunk[-1] == " ":
+                    # curChunk = curChunk[:-1]
+                # print('Cropped trailing space.')
+                # if curChunk[0] == " ":
+                    # curChunk = curChunk[1:]
+                # print('Cropped leading space.')
                 curChunk = curChunk.replace(" \n\n", "\n\n")
+                # print('Cropped line trailing spaces.')
                 curChunk = curChunk.replace("  ", " ")
+                # print('Cropped double spaces.')
                 chunkList.append(curChunk)
                 curChunk = f"{self.sentences[index]} "
                 curTokenCount = len(currentTokens)
