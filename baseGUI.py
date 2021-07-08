@@ -874,7 +874,6 @@ class InitialPrep(QWidget):
                 self.verbCount += 1
         print(f"Number of verbs: {self.verbCount}")
 
-
     def tokenizeData(self):
         self.tokens = encoder.encode(self.findMainWindow().curData)
         self.tokenCount = len(self.tokens)
@@ -1061,7 +1060,10 @@ class InitialPrep(QWidget):
 
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
-        self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
+        # self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
+        self.findMainWindow().curData = re.sub(r' +\n', '\n', self.findMainWindow().curData)
+        if self.findMainWindow().curData[-1] == ' ':
+            self.findMainWindow().curData = self.findMainWindow().curData[0:-1]
         self.findMainWindow().toggleFileUnsaved()
 
     def lineStartSpaceRemove(self):
@@ -1098,6 +1100,27 @@ class InitialPrep(QWidget):
             if isinstance(widget, QMainWindow):
                 return widget
         return None
+
+
+class StatViewer(QWidget):
+    def __init__(self):
+        super(StatViewer, self).__init__()
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        self.curCharCount = 0
+        self.curWordCount = 0
+        self.curLines = []
+        self.curLineCount = 0
+        self.curLineLengths = []
+        self.tokens = []
+        self.tokenCount = 0
+        self.uniqueTokens = []
+        self.uniqueTokenCount = 0
+        self.tokenDistribution = {}
+
+        self.taggedPOS = []
 
 
 class ChunkStack(QWidget):
