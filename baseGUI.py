@@ -1068,7 +1068,8 @@ class InitialPrep(QWidget):
 
     def lineStartSpaceRemove(self):
         """removes spaces at line beginnings"""
-        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n ', '\n')
+        # self.findMainWindow().curData = self.findMainWindow().curData.replace('\n ', '\n')
+        self.findMainWindow().curData = re.sub(r'\n +', '\n', self.findMainWindow().curData)
         self.findMainWindow().toggleFileUnsaved()
 
     def doubleNewlineRemove(self):
