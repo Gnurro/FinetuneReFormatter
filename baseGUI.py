@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
             self.move(windowPosition[0], windowPosition[1])
         else:
             self.setGeometry(1000, 1000, 800, 800)
-            self.move(800, 40)
+            self.move(800, 20)
         # overall values used for file handling:
         self.curFileInfo = ''
         self.curFilePath = ''
