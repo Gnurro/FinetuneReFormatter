@@ -1109,7 +1109,7 @@ class InitialPrep(QWidget):
         if self.findMainWindow().settings:
             badDinkusList = self.findMainWindow().settings['InitialPrep']['badDinkusList']
         else:
-            badDinkusList = ["#", "◇", "◇ ◇ ◇", "◇◇◇", "◆", "◆◆◆", "◆ ◆ ◆", "◆ ◇ ◆", "●", "✽ ✽ ✽", "※※※※※", "× ×", "~~~"]
+            badDinkusList = ["❦", "§", "#", "◇", "◇ ◇ ◇", "◇◇◇", "◆", "◆◆◆", "◆ ◆ ◆", "◆ ◇ ◆", "●", "✽ ✽ ✽", "※※※※※", "× ×", "~~~"]
         for badDinkus in badDinkusList:
             self.findMainWindow().curData = re.sub(f'\n{badDinkus}\n', '\n***\n', self.findMainWindow().curData)
 
