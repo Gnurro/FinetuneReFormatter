@@ -777,6 +777,9 @@ class InitialPrep(QWidget):
         # remove block layout newlines:
         self.blockLayoutRemoveButton = QPushButton('Remove block layout')
         self.blockLayoutRemoveButton.clicked.connect(self.blockLayoutRemove)
+        # replace bad paragraph break characters:
+        self.badDinkusReplaceButton = QPushButton('Remove bad paragraph break characters')
+        self.badDinkusReplaceButton.clicked.connect(self.badDinkusReplace)
 
         # get basic statistics:
         self.getDataStats()
@@ -815,6 +818,7 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.lineStartSpaceRemoveButton, 8, 1)
         self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 2)
         self.layout.addWidget(self.blockLayoutRemoveButton, 8, 3)
+        self.layout.addWidget(self.badDinkusReplaceButton, 8, 4)
 
     def getDataStats(self):
         # characters:
@@ -1100,6 +1104,14 @@ class InitialPrep(QWidget):
             self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
             self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
             self.findMainWindow().toggleFileUnsaved()
+
+    def badDinkusReplace(self):
+        if self.findMainWindow().settings:
+            badDinkusList = self.findMainWindow().settings['InitialPrep']['badDinkusList']
+        else:
+            badDinkusList = ['◇', '◇ ◇ ◇', '◆', '●', '✽ ✽ ✽', '※※※※※', '× ×', '~~~']
+        for badDinkus in badDinkusList:
+            self.findMainWindow().curData = re.sub(f'\n{badDinkus}\n', '\n***\n', self.findMainWindow().curData)
 
     def findMainWindow(self):
         """helper method to conveniently get the MainWindow widget object"""
