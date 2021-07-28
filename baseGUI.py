@@ -8,7 +8,6 @@ TODO:
     -
     - Fix empty file InLine mode crash
     -
-    - add continuation type tagging to make data more useful for research as well?
     - move findMainWindow() outside of spec classes, iE make it static!
 """
 
@@ -37,6 +36,14 @@ from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
 encoder = get_encoder()
 # get proper reverse token dictionary:
 fixEncodes = tokensToUTF.getFixEncodes()
+
+
+def findMainWindow():
+    """helper method to conveniently get the MainWindow widget object"""
+    for widget in app.topLevelWidgets():
+        if isinstance(widget, QMainWindow):
+            return widget
+    return None
 
 
 class MainWindow(QMainWindow):
@@ -270,17 +277,11 @@ class IntroScreen(QWidget):
         self.layout.addWidget(self.exploreTokensButton, 2, 0)
 
     def openFile(self):
-        self.findMainWindow().fileSelect()
+        findMainWindow().fileSelect()
 
     def toTokenExplorer(self):
         curTokenExplorer = TokenExplorer()
-        self.findMainWindow().setCentralWidget(curTokenExplorer)
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
+        findMainWindow().setCentralWidget(curTokenExplorer)
 
 
 class SourceInspector(QWidget):
@@ -298,7 +299,7 @@ class SourceInspector(QWidget):
         self.setLayout(self.layout)
 
         self.textField = QCodeEditor()
-        self.textField.setPlainText(self.findMainWindow().curData)
+        self.textField.setPlainText(findMainWindow().curData)
         self.textField.textChanged.connect(self.textChange)
 
         # instant token count:
@@ -403,8 +404,9 @@ class SourceInspector(QWidget):
         self.badLineCount = 0
         # list of strings that are proper ends of lines/end sentences:
         lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
-        if self.findMainWindow().settings:
-            lineEnders = self.findMainWindow().settings['SourceInspector']['lineEnders']
+        if findMainWindow().settings:
+            print('line ender settings found!')
+            lineEnders = findMainWindow().settings['SourceInspector']['lineEnders']
         # process line by line:
         for lineIndex in range(0, len(self.textLines)):
             line = self.textLines[lineIndex]
@@ -506,13 +508,6 @@ class SourceInspector(QWidget):
         textCursor.setPosition(value)
         self.textField.setTextCursor(textCursor)
 
-    def findMainWindow(self):
-        """helper method to conveniently get the MainWindow widget object"""
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
-
     def textChange(self):
         """event method for realtime text checking"""
         # update token count if instant token encoding+counting is on:
@@ -527,8 +522,8 @@ class SourceInspector(QWidget):
         # update warnings:
         self.checkWarnables()
         # update the cached text at toplevel:
-        self.findMainWindow().curData = self.textField.toPlainText()
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().curData = self.textField.toPlainText()
+        findMainWindow().toggleFileUnsaved()
 
     def checkWarnables(self):
         """
@@ -688,8 +683,8 @@ class InitialPrep(QWidget):
         self.dataStatsLabel.setAlignment(Qt.AlignTop)
         # placeholder string for sentence endings:
         self.sentenceEndPlaceholder = '%%%%%'
-        if self.findMainWindow().settings:
-            self.sentenceEndPlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+        if findMainWindow().settings:
+            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
         self.sentences = []
         # word distribution:
         self.uniqueWords = []
@@ -717,15 +712,15 @@ class InitialPrep(QWidget):
         self.makeChunksFileTknsPerChunk = QSpinBox()
         self.makeChunksFileTknsPerChunk.editingFinished.connect(self.updateTokensPerChunk)
         self.makeChunksFileTknsPerChunk.setValue(65)  # subject to change
-        if self.findMainWindow().settings:
-            self.makeChunksFileTknsPerChunk.setValue(self.findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'])
+        if findMainWindow().settings:
+            self.makeChunksFileTknsPerChunk.setValue(findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'])
         self.makeChunksFileTknsPerChunk.setMaximum(200)  # subject to change
-        if self.findMainWindow().settings:
-            self.makeChunksFileTknsPerChunk.setMaximum(self.findMainWindow().settings['InitialPrep']['chunking']['maxTokensPerChunk'])
+        if findMainWindow().settings:
+            self.makeChunksFileTknsPerChunk.setMaximum(findMainWindow().settings['InitialPrep']['chunking']['maxTokensPerChunk'])
         # placeholder chunks insertion:
         self.makeChunksFileInsertsCheckbox = QCheckBox('Insert placeholder chunks')
-        if self.findMainWindow().settings:
-            self.makeChunksFileInsertsCheckbox.setChecked(self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'])
+        if findMainWindow().settings:
+            self.makeChunksFileInsertsCheckbox.setChecked(findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'])
         # placeholder chunk interval:
         # TODO: add this?
         # self.makeChunksFileInsertsIntervalLabel = QLabel('Chunk insertion interval:')
@@ -734,25 +729,25 @@ class InitialPrep(QWidget):
         # placeholder chunk metadata type:
         self.makeChunksFileInsertsTypeLabel = QLabel('Placeholder type tag:')
         self.makeChunksFileInsertsTypeString = 'generic'
-        if self.findMainWindow().settings:
-            self.makeChunksFileInsertsTypeString = self.findMainWindow().settings['InitialPrep']['chunking']['placeholderType']
+        if findMainWindow().settings:
+            self.makeChunksFileInsertsTypeString = findMainWindow().settings['InitialPrep']['chunking']['placeholderType']
         self.makeChunksFileInsertsType = QLineEdit(self.makeChunksFileInsertsTypeString)
         self.makeChunksFileInsertsType.setMaxLength(12)
         # placeholder chunk placeholder text:
         self.makeChunksFileInsertsTextLabel = QLabel('Placeholder text:')
         self.makeChunksFileInsertsTextString = 'PLACEHOLDER'
-        if self.findMainWindow().settings:
-            self.makeChunksFileInsertsTextString = self.findMainWindow().settings['InitialPrep']['chunking']['placeholderText']
+        if findMainWindow().settings:
+            self.makeChunksFileInsertsTextString = findMainWindow().settings['InitialPrep']['chunking']['placeholderText']
         self.makeChunksFileInsertsText = QLineEdit(self.makeChunksFileInsertsTextString)
         # chunk file export:
         self.makeChunksFileTknSuffix = f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}'
-        if self.findMainWindow().settings:
-            if not self.findMainWindow().settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix']:
+        if findMainWindow().settings:
+            if not findMainWindow().settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix']:
                 self.makeChunksFileTknSuffix = f'Chunk file suffix: _'
         self.makeChunksFileSuffixLabel = QLabel(self.makeChunksFileTknSuffix)
         self.makeChunksFileSuffixString = 'tknChunks'
-        if self.findMainWindow().settings:
-            self.makeChunksFileSuffixString = self.findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix']
+        if findMainWindow().settings:
+            self.makeChunksFileSuffixString = findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix']
         self.makeChunksFileSuffix = QLineEdit(self.makeChunksFileSuffixString)
         self.makeChunksButton = QPushButton('Create chunks and save')
         self.makeChunksButton.clicked.connect(self.exportChunks)
@@ -822,18 +817,18 @@ class InitialPrep(QWidget):
 
     def getDataStats(self):
         # characters:
-        self.curCharCount = len(self.findMainWindow().curData)
+        self.curCharCount = len(findMainWindow().curData)
         # words:
-        self.words = self.findMainWindow().curData.split()
+        self.words = findMainWindow().curData.split()
         self.curWordCount = len(self.words)
         # lines:
-        self.curLines = self.findMainWindow().curData.split('\n')
+        self.curLines = findMainWindow().curData.split('\n')
         self.curLineCount = len(self.curLines)
         # sentences:
         sentenceEnders = ['.', '!', '?', ':']
-        if self.findMainWindow().settings:
-            sentenceEnders = self.findMainWindow().settings['InitialPrep']['sentenceEnders']
-        rawSentencesMarked = self.findMainWindow().curData
+        if findMainWindow().settings:
+            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
+        rawSentencesMarked = findMainWindow().curData
         for sentenceEnder in sentenceEnders:
             rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
         self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
@@ -872,7 +867,7 @@ class InitialPrep(QWidget):
         print(self.curLineLengths)
 
     def getPOS(self):
-        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(self.findMainWindow().curData))
+        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
         # print(self.taggedPOS)
         self.verbCount = 0
         for word, pos in self.taggedPOS:
@@ -881,7 +876,7 @@ class InitialPrep(QWidget):
         print(f"Number of verbs: {self.verbCount}")
 
     def tokenizeData(self):
-        self.tokens = encoder.encode(self.findMainWindow().curData)
+        self.tokens = encoder.encode(findMainWindow().curData)
         self.tokenCount = len(self.tokens)
         # disable button:
         self.tokenizeButton.setEnabled(False)
@@ -911,8 +906,8 @@ class InitialPrep(QWidget):
         self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
         showTokenDistString = ''
         topTokenAmount = 10
-        if self.findMainWindow().settings:
-            topTokenAmount = self.findMainWindow().settings['InitialPrep']['topTokenAmount']
+        if findMainWindow().settings:
+            topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
         for tokenFrequency in self.tokenDistribution[:topTokenAmount]:
             for key, value in fixEncodes.items():
                 if value == tokenFrequency[0]:
@@ -961,13 +956,13 @@ class InitialPrep(QWidget):
             statsData['wordDistribution'] = self.wordDistribution
         if self.curLineLengths:
             statsData['lineLengths'] = self.curLineLengths
-        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
+        with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
                   'w', encoding='utf-8') as statsOutFile:
             statsOutFile.write(json.dumps(statsData))
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
-        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
+        with open(f'{findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
             sentenceOutFile.write(json.dumps(self.sentences))
 
     def exportChunks(self):
@@ -1034,58 +1029,58 @@ class InitialPrep(QWidget):
         fullData = {'projectData': {'targetTknsPerChunk': self.makeChunksFileTknsPerChunk.value(), 'tagTypeData': {}}, 'chunks': fullList}
         fullDataJSON = json.dumps(fullData)
 
-        if self.findMainWindow().settings:
-            if self.findMainWindow().settings['general']['overwriteWarnings']:
-                if os.path.isfile(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json'):
-                    overWriteWarnBox = QMessageBox.question(self, 'Overwrite Warning', f'"{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json" already exists! Do you want to overwrite it?', QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
+        if findMainWindow().settings:
+            if findMainWindow().settings['general']['overwriteWarnings']:
+                if os.path.isfile(f'{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json'):
+                    overWriteWarnBox = QMessageBox.question(self, 'Overwrite Warning', f'"{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json" already exists! Do you want to overwrite it?', QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
                     if overWriteWarnBox == QMessageBox.Ok:
-                        with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
+                        with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
                             chunksOutFile.write(fullDataJSON)
                 else:
-                    with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
+                    with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
                         chunksOutFile.write(fullDataJSON)
             else:
-                with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
+                with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
                     chunksOutFile.write(fullDataJSON)
         else:
-            with open(f'{self.findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
+            with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_{self.makeChunksFileTknsPerChunk.value()}{self.makeChunksFileSuffix.text()}.json', 'w', encoding='utf-8') as chunksOutFile:
                 chunksOutFile.write(fullDataJSON)
 
     def updateTokensPerChunk(self):
         """inserts desired token number into suffix automatically"""
         self.makeChunksFileTknSuffix = f'Chunk file suffix: _{self.makeChunksFileTknsPerChunk.value()}'
-        if self.findMainWindow().settings:
-            if not self.findMainWindow().settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix']:
+        if findMainWindow().settings:
+            if not findMainWindow().settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix']:
                 self.makeChunksFileTknSuffix = f'Chunk file suffix: _'
         self.makeChunksFileSuffixLabel.setText(self.makeChunksFileTknSuffix)
 
     def saveChunkingSettings(self):
-        if self.findMainWindow().settings:
-            self.findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'] = self.makeChunksFileTknsPerChunk.value()
-            self.findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'] = self.makeChunksFileInsertsCheckbox.isChecked()
-            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderType'] = self.makeChunksFileInsertsType.text()
-            self.findMainWindow().settings['InitialPrep']['chunking']['placeholderText'] = self.makeChunksFileInsertsText.text()
-            self.findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix'] = self.makeChunksFileSuffix.text()
-            self.findMainWindow().saveSettings()
+        if findMainWindow().settings:
+            findMainWindow().settings['InitialPrep']['chunking']['targetTokensPerChunk'] = self.makeChunksFileTknsPerChunk.value()
+            findMainWindow().settings['InitialPrep']['chunking']['addPlaceholders'] = self.makeChunksFileInsertsCheckbox.isChecked()
+            findMainWindow().settings['InitialPrep']['chunking']['placeholderType'] = self.makeChunksFileInsertsType.text()
+            findMainWindow().settings['InitialPrep']['chunking']['placeholderText'] = self.makeChunksFileInsertsText.text()
+            findMainWindow().settings['InitialPrep']['chunking']['chunkFileSuffix'] = self.makeChunksFileSuffix.text()
+            findMainWindow().saveSettings()
 
     def lineEndSpaceRemove(self):
         """removes spaces at line ends"""
-        # self.findMainWindow().curData = self.findMainWindow().curData.replace(' \n', '\n')
-        self.findMainWindow().curData = re.sub(r' +\n', '\n', self.findMainWindow().curData)
-        if self.findMainWindow().curData[-1] == ' ':
-            self.findMainWindow().curData = self.findMainWindow().curData[0:-1]
-        self.findMainWindow().toggleFileUnsaved()
+        # findMainWindow().curData = findMainWindow().curData.replace(' \n', '\n')
+        findMainWindow().curData = re.sub(r' +\n', '\n', findMainWindow().curData)
+        if findMainWindow().curData[-1] == ' ':
+            findMainWindow().curData = findMainWindow().curData[0:-1]
+        findMainWindow().toggleFileUnsaved()
 
     def lineStartSpaceRemove(self):
         """removes spaces at line beginnings"""
-        # self.findMainWindow().curData = self.findMainWindow().curData.replace('\n ', '\n')
-        self.findMainWindow().curData = re.sub(r'\n +', '\n', self.findMainWindow().curData)
-        self.findMainWindow().toggleFileUnsaved()
+        # findMainWindow().curData = findMainWindow().curData.replace('\n ', '\n')
+        findMainWindow().curData = re.sub(r'\n +', '\n', findMainWindow().curData)
+        findMainWindow().toggleFileUnsaved()
 
     def doubleNewlineRemove(self):
         """removes double newlines"""
-        self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', '\n')
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().curData = findMainWindow().curData.replace('\n\n', '\n')
+        findMainWindow().toggleFileUnsaved()
 
     def blockLayoutRemove(self):
         """removes block layout GREEDILY"""
@@ -1095,30 +1090,23 @@ class InitialPrep(QWidget):
                                                 QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
         if greedyBlockLayoutRemoveWarnBox == QMessageBox.Ok:
             doubleNewlinePlaceholder = '%%%%%'
-            if self.findMainWindow().settings:
-                doubleNewlinePlaceholder = self.findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
-            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
-            self.findMainWindow().curData = self.findMainWindow().curData.replace('\n', ' ')
+            if findMainWindow().settings:
+                doubleNewlinePlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+            findMainWindow().curData = findMainWindow().curData.replace('\n\n', doubleNewlinePlaceholder)
+            findMainWindow().curData = findMainWindow().curData.replace('\n', ' ')
             # the line above can lead to double spaces if the source has trailing/leading spaces on lines
             # so those get removed, as well:
-            self.findMainWindow().curData = self.findMainWindow().curData.replace('  ', ' ')
-            self.findMainWindow().curData = self.findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
-            self.findMainWindow().toggleFileUnsaved()
+            findMainWindow().curData = findMainWindow().curData.replace('  ', ' ')
+            findMainWindow().curData = findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
+            findMainWindow().toggleFileUnsaved()
 
     def badDinkusReplace(self):
-        if self.findMainWindow().settings:
-            badDinkusList = self.findMainWindow().settings['InitialPrep']['badDinkusList']
+        if findMainWindow().settings:
+            badDinkusList = findMainWindow().settings['InitialPrep']['badDinkusList']
         else:
             badDinkusList = ["❦", "§", "#", "◇", "◇ ◇ ◇", "◇◇◇", "◆", "◆◆◆", "◆ ◆ ◆", "◆ ◇ ◆", "●", "✽ ✽ ✽", "※※※※※", "× ×", "~~~"]
         for badDinkus in badDinkusList:
-            self.findMainWindow().curData = re.sub(f'\n{badDinkus}\n', '\n***\n', self.findMainWindow().curData)
-
-    def findMainWindow(self):
-        """helper method to conveniently get the MainWindow widget object"""
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
+            findMainWindow().curData = re.sub(f'\n{badDinkus}\n', '\n***\n', findMainWindow().curData)
 
 
 class StatViewer(QWidget):
@@ -1163,11 +1151,11 @@ class ChunkStack(QWidget):
         self.setLayout(self.layout)
         # initial view position:
         self.startIndex = startIndex
-        if not self.findMainWindow().persistentChunkStackStartIndex == 0:
-            self.startIndex = self.findMainWindow().persistentChunkStackStartIndex
+        if not findMainWindow().persistentChunkStackStartIndex == 0:
+            self.startIndex = findMainWindow().persistentChunkStackStartIndex
         self.chunkAmount = chunkAmount
-        if self.findMainWindow().settings:
-            self.chunkAmount = self.findMainWindow().settings['ChunkStack']['chunkAmount']
+        if findMainWindow().settings:
+            self.chunkAmount = findMainWindow().settings['ChunkStack']['chunkAmount']
         # change view position:
         curNavBar = ChunkStackNavigation(startIndex=self.startIndex, chunkAmount=self.chunkAmount)
         self.navBar = curNavBar
@@ -1182,19 +1170,13 @@ class ChunkStack(QWidget):
         self.clearStack()
         # print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
-            self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=self.findMainWindow().curData['chunks'][chunkTextIndex]))
+            self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=findMainWindow().curData['chunks'][chunkTextIndex]))
 
     def clearStack(self):
         """clears the chunk stack"""
         # print('Clearing ChunkStack...')
         for actionIndex in reversed(range(1, self.layout.count())):
             self.layout.itemAt(actionIndex).widget().setParent(None)
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
 
 class ChunkStackNavigation(QWidget):
@@ -1216,9 +1198,9 @@ class ChunkStackNavigation(QWidget):
         self.navLabel = QLabel('View beginning at chunk index:')
         # change view position:
         self.startIndexSpinBox = QSpinBox()
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
-        if not self.findMainWindow().persistentChunkStackStartIndex == 0:
-            self.startIndexSpinBox.setValue(self.findMainWindow().persistentChunkStackStartIndex)
+        self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
+        if not findMainWindow().persistentChunkStackStartIndex == 0:
+            self.startIndexSpinBox.setValue(findMainWindow().persistentChunkStackStartIndex)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
         # current viewed token total:
         self.currentTokensInView = 0
@@ -1240,19 +1222,19 @@ class ChunkStackNavigation(QWidget):
     def startIndexChange(self):
         """track changes in view position"""
         # make sure indexing can't be messed up:
-        self.startIndexSpinBox.setMaximum(len(self.findMainWindow().curData['chunks']) - self.chunkAmount)
+        self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
         # apply the spinbox value:
         self.startIndex = self.startIndexSpinBox.value()
         self.parentWidget().startIndex = self.startIndex
         # update the stack:
         self.parentWidget().fillStack()
         # make view position persistent for session:
-        self.findMainWindow().persistentChunkStackStartIndex = self.startIndex
+        findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
 
     def chunkViewIndexAdd(self):
         """navigation shortcut method adding to startIndex"""
-        if self.startIndexSpinBox.value() + 1 <= len(self.findMainWindow().curData['chunks']) - self.chunkAmount:
+        if self.startIndexSpinBox.value() + 1 <= len(findMainWindow().curData['chunks']) - self.chunkAmount:
             self.startIndexSpinBox.setValue(self.startIndexSpinBox.value()+1)
 
     def chunkViewIndexSub(self):
@@ -1266,12 +1248,6 @@ class ChunkStackNavigation(QWidget):
         for chunkEdit in range(1, self.parentWidget().layout.count()):
             self.currentTokensInView += self.parentWidget().layout.itemAt(chunkEdit).widget().tokenCount
         self.tokensInViewLabel.setText(f'Tokens in current view: {str(self.currentTokensInView)}')
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
 
 class ChunkTextEdit(QWidget):
@@ -1356,11 +1332,6 @@ class ChunkTextEdit(QWidget):
         # self.layout.addWidget(self.advancedMenu, 2, 1, alignment=Qt.AlignRight)
         self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignTop)
 
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
     def textChange(self):
         """
@@ -1374,30 +1345,30 @@ class ChunkTextEdit(QWidget):
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        self.findMainWindow().curData['chunks'][self.chunkID]['text'] = self.textField.toPlainText()
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().curData['chunks'][self.chunkID]['text'] = self.textField.toPlainText()
+        findMainWindow().toggleFileUnsaved()
 
     def spliceAbove(self):
         """add a chunk above this chunk"""
         insertChunk = {'text': 'PLACEHOLDER', 'type': 'generic'}
-        if self.findMainWindow().settings:
-            insertChunkText = self.findMainWindow().settings['ChunkStack']['insertChunkText']
-            insertChunkType = self.findMainWindow().settings['ChunkStack']['insertChunkType']
+        if findMainWindow().settings:
+            insertChunkText = findMainWindow().settings['ChunkStack']['insertChunkText']
+            insertChunkType = findMainWindow().settings['ChunkStack']['insertChunkType']
             insertChunk = {'text': insertChunkText, 'type': insertChunkType}
-        self.findMainWindow().curData['chunks'].insert(self.chunkID, insertChunk)
+        findMainWindow().curData['chunks'].insert(self.chunkID, insertChunk)
         self.parentWidget().fillStack()
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().toggleFileUnsaved()
 
     def spliceBelow(self):
         """add a chunk above this chunk"""
         insertChunk = {'text': 'PLACEHOLDER', 'type': 'generic'}
-        if self.findMainWindow().settings:
-            insertChunkText = self.findMainWindow().settings['ChunkStack']['insertChunkText']
-            insertChunkType = self.findMainWindow().settings['ChunkStack']['insertChunkType']
+        if findMainWindow().settings:
+            insertChunkText = findMainWindow().settings['ChunkStack']['insertChunkText']
+            insertChunkType = findMainWindow().settings['ChunkStack']['insertChunkType']
             insertChunk = {'text': insertChunkText, 'type': insertChunkType}
-        self.findMainWindow().curData['chunks'].insert(self.chunkID+1, insertChunk)
+        findMainWindow().curData['chunks'].insert(self.chunkID+1, insertChunk)
         self.parentWidget().fillStack()
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().toggleFileUnsaved()
 
     def editActionType(self):
         """toggle type tag editing"""
@@ -1410,16 +1381,16 @@ class ChunkTextEdit(QWidget):
 
     def updateType(self):
         """update chunk type tag in working data"""
-        self.findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
+        findMainWindow().toggleFileUnsaved()
 
     def deleteChunk(self):
         """delete this chunk"""
-        self.findMainWindow().curData['chunks'].pop(self.chunkID)
-        self.findMainWindow().toggleFileUnsaved()
+        findMainWindow().curData['chunks'].pop(self.chunkID)
+        findMainWindow().toggleFileUnsaved()
         # make sure GUI doesn't break due to bad indexing:
         newEndIndex = self.parentWidget().startIndex + self.parentWidget().chunkAmount
-        if newEndIndex > len(self.findMainWindow().curData['chunks']):
+        if newEndIndex > len(findMainWindow().curData['chunks']):
             self.parentWidget().startIndex = self.parentWidget().startIndex-1
             self.parentWidget().navBar.startIndex = self.parentWidget().navBar.startIndex-1
         # update the stack:
@@ -1459,12 +1430,6 @@ class TokenExplorer(QWidget):
 
         self.outputText.setText('|'.join(catchList))
 
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
-
 
 class ChunkCombiner(QWidget):
     """
@@ -1485,10 +1450,10 @@ class ChunkCombiner(QWidget):
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
 
-        self.chunkAmount = len(self.findMainWindow().curData['chunks'])
+        self.chunkAmount = len(findMainWindow().curData['chunks'])
         self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
         # check working data for chunk type (tags):
-        chunkTagsList = [chunk['type'] for chunk in self.findMainWindow().curData['chunks']]
+        chunkTagsList = [chunk['type'] for chunk in findMainWindow().curData['chunks']]
         self.tagTypes = list(set(chunkTagsList))
         self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
         tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
@@ -1499,16 +1464,16 @@ class ChunkCombiner(QWidget):
         # combined file settings:
         self.fileSuffixLabel = QLabel('Combined file suffix:')
         self.fileSuffixString = '_combined'
-        if self.findMainWindow().settings:
-            self.fileSuffixString = self.findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
+        if findMainWindow().settings:
+            self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
         self.fileSuffix = QLineEdit(self.fileSuffixString)
         # add type-based strings, combine chunks and export as plaintext:
         self.combineExportButton = QPushButton('Export combined chunks')
         self.combineExportButton.clicked.connect(self.combineExport)
         # persistent chunk type handling settings:
         self.tagTypeData = {}
-        if 'tagTypeData' in self.findMainWindow().curData['projectData'].keys():
-            self.tagTypeData = self.findMainWindow().curData['projectData']['tagTypeData']
+        if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
+            self.tagTypeData = findMainWindow().curData['projectData']['tagTypeData']
         print(f'tagTypeData: {self.tagTypeData}')
 
         self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
@@ -1548,26 +1513,26 @@ class ChunkCombiner(QWidget):
     def saveTagTypeData(self):
         print('saving tag type data')
         self.getTagTypeStackItems()
-        self.findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
+        findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
         self.updateChunkTypeStack()
-        with open(f'{self.findMainWindow().curFilePath}', 'w', encoding='utf-8') as chunksOutFile:
-            fullDataJSON = json.dumps(self.findMainWindow().curData)
+        with open(f'{findMainWindow().curFilePath}', 'w', encoding='utf-8') as chunksOutFile:
+            fullDataJSON = json.dumps(findMainWindow().curData)
             chunksOutFile.write(fullDataJSON)
 
     def combineExport(self):
         self.getTagTypeStackItems()
         chunkTextsList = []
-        for chunkIndex in range(len(self.findMainWindow().curData['chunks'])):
-            chunkText = self.findMainWindow().curData['chunks'][chunkIndex]['text']
+        for chunkIndex in range(len(findMainWindow().curData['chunks'])):
+            chunkText = findMainWindow().curData['chunks'][chunkIndex]['text']
             # add prefix:
-            chunkText = self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][2] + chunkText
+            chunkText = self.tagTypeData[findMainWindow().curData['chunks'][chunkIndex]['type']][2] + chunkText
             # add suffix:
-            chunkText += self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][3]
+            chunkText += self.tagTypeData[findMainWindow().curData['chunks'][chunkIndex]['type']][3]
             # check for newline adding to start of chunk text:
-            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][0]:
+            if self.tagTypeData[findMainWindow().curData['chunks'][chunkIndex]['type']][0]:
                 chunkText = '\n' + chunkText
             # check for newline adding to end of chunk text:
-            if self.tagTypeData[self.findMainWindow().curData['chunks'][chunkIndex]['type']][1]:
+            if self.tagTypeData[findMainWindow().curData['chunks'][chunkIndex]['type']][1]:
                 chunkText += '\n'
             # add updated chunk text to list:
             chunkTextsList.append(chunkText)
@@ -1575,14 +1540,8 @@ class ChunkCombiner(QWidget):
         combinedString = ''.join(chunkTextsList)
         # print(combinedString)
         # save the whole thing:
-        with open(f'{self.findMainWindow().curFilePath.replace(".json", "")}{self.fileSuffix.text()}.txt', 'w', encoding='utf-8') as combinedChunksFile:
+        with open(f'{findMainWindow().curFilePath.replace(".json", "")}{self.fileSuffix.text()}.txt', 'w', encoding='utf-8') as combinedChunksFile:
             combinedChunksFile.write(combinedString)
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
 
 class TagTypeStack(QWidget):
@@ -1604,12 +1563,6 @@ class TagTypeStack(QWidget):
         for tagType in self.tagTypes:
             curTagTypeHolder = TagTypeHolder(tagType)
             self.layout.addWidget(curTagTypeHolder)
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
 
 
 class TagTypeHolder(QWidget):
@@ -1644,16 +1597,16 @@ class TagTypeHolder(QWidget):
         self.tagTypeSuffix = QLineEdit()
         self.tagTypeSuffix.textChanged.connect(self.dataChanged)
 
-        if tagType in self.findMainWindow().curData['projectData']['tagTypeData'].keys():
+        if tagType in findMainWindow().curData['projectData']['tagTypeData'].keys():
             self.tagTypeSaveWarnLabel.setText('')
-            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][0]:
+            if findMainWindow().curData['projectData']['tagTypeData'][tagType][0]:
                 self.tagTypeFrontNewlineCheckbox.setChecked(True)
-            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][1]:
+            if findMainWindow().curData['projectData']['tagTypeData'][tagType][1]:
                 self.tagTypeBackNewlineCheckbox.setChecked(True)
-            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2]:
-                self.tagTypePrefix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][2])
-            if self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3]:
-                self.tagTypeSuffix.setText(self.findMainWindow().curData['projectData']['tagTypeData'][tagType][3])
+            if findMainWindow().curData['projectData']['tagTypeData'][tagType][2]:
+                self.tagTypePrefix.setText(findMainWindow().curData['projectData']['tagTypeData'][tagType][2])
+            if findMainWindow().curData['projectData']['tagTypeData'][tagType][3]:
+                self.tagTypeSuffix.setText(findMainWindow().curData['projectData']['tagTypeData'][tagType][3])
         else:
             self.tagTypeSaveWarnLabel.setText('<b>(not saved)</b>')
 
@@ -1675,13 +1628,7 @@ class TagTypeHolder(QWidget):
         return outTagType, [preNewlineBool, postNewlineBool, prefix, suffix]
 
     def dataChanged(self):
-        self.findMainWindow().toggleFileUnsaved()
-
-    def findMainWindow(self):
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
+        findMainWindow().toggleFileUnsaved()
 
 
 if __name__ == '__main__':
