@@ -678,53 +678,14 @@ class InitialPrep(QWidget):
         self.layout = QGridLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
-        """
-        # stat values:
-        self.curCharCount = 0
-        self.curWordCount = 0
-        self.curLines = []
-        self.curLineCount = 0
-        self.curLineLengths = []
-        self.tokens = []
-        self.tokenCount = 0
-        self.uniqueTokens = []
-        self.uniqueTokenCount = 0
-        self.tokenDistribution = {}
 
-        self.taggedPOS = []
-
-        self.dataStatsLabel = QLabel('Stats:')
-        self.dataStatsLabel.setAlignment(Qt.AlignTop)
-        # placeholder string for sentence endings:
-        self.sentenceEndPlaceholder = '%%%%%'
-        if findMainWindow().settings:
-            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
-        self.sentences = []
-        # word distribution:
-        self.uniqueWords = []
-        self.wordDistribution = {}
-        # word distribution button:
-        self.wordDistButton = QPushButton('Calculate word distribution')
-        self.wordDistButton.clicked.connect(self.getWordDistribution)
-        # tokenize button:
-        self.tokenizeButton = QPushButton('Tokenize data')
-        self.tokenizeButton.clicked.connect(self.tokenizeData)
-        # token distribution:
-        self.tokenDistLabel = QLabel('Token distribution:')
-        self.tokenDistributionButton = QPushButton('Calculate token distribution')
-        self.tokenDistributionButton.setEnabled(False)
-        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
-        # stats and token distribution export:
-        self.exportStatsAndTknDistButton = QPushButton('Export statistics')
-        self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
-        # self.exportStatsAndTknDistButton.setEnabled(False)
-        """
         # sentence list:
         # TODO: figure out if this is even useful:
         self.chopSentencesButton = QPushButton('Split into sentences and save')
         self.chopSentencesButton.clicked.connect(self.exportSentenceList)
         self.chopSentencesFileSuffixLabel = QLabel('Sentence file suffix:')
         self.chopSentencesFileSuffix = QLineEdit('_sentences')
+
         # chunking:
         self.makeChunksHeaderLabel = QLabel('<b>Chunking:</b>')
         self.makeChunksFileTknsPerChunkLabel = QLabel('Maximum tokens per chunk:')
@@ -773,6 +734,7 @@ class InitialPrep(QWidget):
         # save chunking settings button:
         self.saveChunkingSettingsButton = QPushButton('Save chunking settings')
         self.saveChunkingSettingsButton.clicked.connect(self.saveChunkingSettings)
+
         # one-button fixes:
         self.miscPrepLabel = QLabel('<b>QuickFixes:</b>')
         # remove spaces at line ends:
@@ -791,18 +753,6 @@ class InitialPrep(QWidget):
         self.badDinkusReplaceButton = QPushButton('Remove bad paragraph break characters')
         self.badDinkusReplaceButton.clicked.connect(self.badDinkusReplace)
 
-        """
-        # get basic statistics:
-        self.getDataStats()
-        
-        self.layout.addWidget(self.wordDistButton, 0, 0)
-        self.layout.addWidget(self.tokenizeButton, 0, 1)
-        self.layout.addWidget(self.tokenDistributionButton, 0, 2)
-        self.layout.addWidget(self.exportStatsAndTknDistButton, 0, 3)
-
-        self.layout.addWidget(self.dataStatsLabel, 1, 0)
-        self.layout.addWidget(self.tokenDistLabel, 1, 1)
-        """
 
         self.layout.addWidget(self.chopSentencesFileSuffixLabel, 0, 0)
         self.layout.addWidget(self.chopSentencesFileSuffix, 0, 1)
@@ -832,150 +782,6 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.blockLayoutRemoveButton, 6, 3)
         self.layout.addWidget(self.badDinkusReplaceButton, 6, 4)
 
-    def getDataStats(self):
-        # characters:
-        self.curCharCount = len(findMainWindow().curData)
-        # words:
-        self.words = findMainWindow().curData.split()
-        self.curWordCount = len(self.words)
-        # lines:
-        self.curLines = findMainWindow().curData.split('\n')
-        self.curLineCount = len(self.curLines)
-        # sentences:
-        sentenceEnders = ['.', '!', '?', ':']
-        if findMainWindow().settings:
-            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
-        rawSentencesMarked = findMainWindow().curData
-        for sentenceEnder in sentenceEnders:
-            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
-        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
-        # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
-
-        self.getLineLengths()
-
-        self.getPOS()
-
-    def getWordDistribution(self):
-        for word in self.words:
-            if word not in self.uniqueWords:
-                self.uniqueWords.append(word)
-            if word not in self.wordDistribution.keys():
-                self.wordDistribution[word] = 1
-            elif word in self.wordDistribution.keys():
-                self.wordDistribution[word] += 1
-
-        self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
-
-        self.uniqueWordCount = len(self.uniqueWords)
-
-        print(self.wordDistribution)
-
-    def getLineLengths(self):
-        for line in self.curLines:
-            self.curLineLengths.append(len(line))
-
-        print(self.curLineLengths)
-
-    def getPOS(self):
-        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
-        # print(self.taggedPOS)
-        self.verbCount = 0
-        for word, pos in self.taggedPOS:
-            if 'VB' in pos:
-                self.verbCount += 1
-        print(f"Number of verbs: {self.verbCount}")
-
-    def tokenizeData(self):
-        self.tokens = encoder.encode(findMainWindow().curData)
-        self.tokenCount = len(self.tokens)
-        # disable button:
-        self.tokenizeButton.setEnabled(False)
-        # enable token distribution button:
-        self.tokenDistributionButton.setEnabled(True)
-        # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
-
-    def calculateTokenDistribution(self):
-        """recursively iterate through data and count token occurrences"""
-        for token in self.tokens:
-            if token not in self.uniqueTokens:
-                self.uniqueTokens.append(token)
-            if token not in self.tokenDistribution.keys():
-                self.tokenDistribution[token] = 1
-            elif token in self.tokenDistribution.keys():
-                self.tokenDistribution[token] += 1
-
-        self.uniqueTokenCount = len(self.uniqueTokens)
-
-        self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
-        showTokenDistString = ''
-        topTokenAmount = 10
-        if findMainWindow().settings:
-            topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
-        for tokenFrequency in self.tokenDistribution[:topTokenAmount]:
-            for key, value in fixEncodes.items():
-                if value == tokenFrequency[0]:
-                    curToken = key
-            showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
-
-        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
-
-        # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
-
-        # disable button to avoid crashes:
-        self.tokenDistributionButton.setEnabled(False)
-        # self.exportStatsAndTknDistButton.setEnabled(True)
-
-    def exportStatsAndTknDist(self):
-        # exports data statistics
-        statsData = {
-            'counts': {
-                'characters': self.curCharCount,
-                'words': self.curWordCount,
-                'lines': self.curLineCount,
-                'sentences': len(self.sentences),
-                'verbs': self.verbCount,
-                'tokens': self.tokenCount,
-                'uniqueTokens': self.uniqueTokenCount,
-            }
-        }
-        if self.tokenDistribution:
-
-            decodedTokenDist = []
-            for tokenFrequency in self.tokenDistribution:
-                for key, value in fixEncodes.items():
-                    if value == tokenFrequency[0]:
-                        curDecodeToken = key
-                decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
-
-            statsData['tokenDistribution'] = decodedTokenDist
-        if self.wordDistribution:
-            statsData['wordDistribution'] = self.wordDistribution
-        if self.curLineLengths:
-            statsData['lineLengths'] = self.curLineLengths
-        with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
-                  'w', encoding='utf-8') as statsOutFile:
-            statsOutFile.write(json.dumps(statsData))
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
