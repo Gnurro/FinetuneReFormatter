@@ -27,8 +27,8 @@ from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
 
 import nltk
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
+# nltk.download('punkt')
+# nltk.download('averaged_perceptron_tagger')
 
 # more handy encoder reference:
 encoder = get_encoder()
@@ -67,11 +67,11 @@ class MainWindow(QMainWindow):
 
         # get settings from file:
         if os.path.isfile('./settings.json'):
-            print('settings found!')
+            print('Settings found!')
             with open('./settings.json', 'r', encoding='UTF-8') as settingsFile:
                 self.settings = json.loads(settingsFile.read())
         else:
-            print('no settings file found!')
+            print('No settings file found!')
 
         # window title:
         self.setWindowTitle('Gnurros FinetuneReFormatter')
@@ -83,6 +83,10 @@ class MainWindow(QMainWindow):
         else:
             self.setGeometry(1000, 1000, 800, 800)
             self.move(800, 20)
+
+        # only check for nltk modules once:
+        self.nltkLoaded = False
+
         # overall values used for file handling:
         self.curFileInfo = ''
         self.curFilePath = ''
@@ -98,6 +102,7 @@ class MainWindow(QMainWindow):
         self.dataIsSaved = True
         # mode value persistence:
         self.persistentChunkStackStartIndex = 0
+
         # intro screen showing on start:
         InitialIntroScreen = IntroScreen()
         self.setCentralWidget(InitialIntroScreen)
@@ -673,6 +678,7 @@ class InitialPrep(QWidget):
         self.layout = QGridLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
+        """
         # stat values:
         self.curCharCount = 0
         self.curWordCount = 0
@@ -708,6 +714,11 @@ class InitialPrep(QWidget):
         self.tokenDistributionButton = QPushButton('Calculate token distribution')
         self.tokenDistributionButton.setEnabled(False)
         self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
+        # stats and token distribution export:
+        self.exportStatsAndTknDistButton = QPushButton('Export statistics')
+        self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
+        # self.exportStatsAndTknDistButton.setEnabled(False)
+        """
         # sentence list:
         # TODO: figure out if this is even useful:
         self.chopSentencesButton = QPushButton('Split into sentences and save')
@@ -762,10 +773,6 @@ class InitialPrep(QWidget):
         # save chunking settings button:
         self.saveChunkingSettingsButton = QPushButton('Save chunking settings')
         self.saveChunkingSettingsButton.clicked.connect(self.saveChunkingSettings)
-        # stats and token distribution export:
-        self.exportStatsAndTknDistButton = QPushButton('Export statistics')
-        self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
-        # self.exportStatsAndTknDistButton.setEnabled(False)
         # one-button fixes:
         self.miscPrepLabel = QLabel('<b>QuickFixes:</b>')
         # remove spaces at line ends:
@@ -784,9 +791,10 @@ class InitialPrep(QWidget):
         self.badDinkusReplaceButton = QPushButton('Remove bad paragraph break characters')
         self.badDinkusReplaceButton.clicked.connect(self.badDinkusReplace)
 
+        """
         # get basic statistics:
         self.getDataStats()
-
+        
         self.layout.addWidget(self.wordDistButton, 0, 0)
         self.layout.addWidget(self.tokenizeButton, 0, 1)
         self.layout.addWidget(self.tokenDistributionButton, 0, 2)
@@ -794,34 +802,35 @@ class InitialPrep(QWidget):
 
         self.layout.addWidget(self.dataStatsLabel, 1, 0)
         self.layout.addWidget(self.tokenDistLabel, 1, 1)
+        """
 
-        self.layout.addWidget(self.chopSentencesFileSuffixLabel, 2, 0)
-        self.layout.addWidget(self.chopSentencesFileSuffix, 2, 1)
-        self.layout.addWidget(self.chopSentencesButton, 2, 2)
+        self.layout.addWidget(self.chopSentencesFileSuffixLabel, 0, 0)
+        self.layout.addWidget(self.chopSentencesFileSuffix, 0, 1)
+        self.layout.addWidget(self.chopSentencesButton, 0, 2)
 
-        self.layout.addWidget(self.makeChunksHeaderLabel, 3, 0)
+        self.layout.addWidget(self.makeChunksHeaderLabel, 1, 0)
 
-        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 4, 0)
-        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 4, 1)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunkLabel, 2, 0)
+        self.layout.addWidget(self.makeChunksFileTknsPerChunk, 2, 1)
 
-        self.layout.addWidget(self.makeChunksFileInsertsCheckbox, 5, 0)
-        self.layout.addWidget(self.makeChunksFileInsertsTypeLabel, 5, 1)
-        self.layout.addWidget(self.makeChunksFileInsertsType, 5, 2)
-        self.layout.addWidget(self.makeChunksFileInsertsTextLabel, 5, 3)
-        self.layout.addWidget(self.makeChunksFileInsertsText, 5, 4)
+        self.layout.addWidget(self.makeChunksFileInsertsCheckbox, 3, 0)
+        self.layout.addWidget(self.makeChunksFileInsertsTypeLabel, 3, 1)
+        self.layout.addWidget(self.makeChunksFileInsertsType, 3, 2)
+        self.layout.addWidget(self.makeChunksFileInsertsTextLabel, 3, 3)
+        self.layout.addWidget(self.makeChunksFileInsertsText, 3, 4)
 
-        self.layout.addWidget(self.makeChunksFileSuffixLabel, 6, 0)
-        self.layout.addWidget(self.makeChunksFileSuffix, 6, 1)
-        self.layout.addWidget(self.makeChunksButton, 6, 2)
-        self.layout.addWidget(self.saveChunkingSettingsButton, 6, 3)
+        self.layout.addWidget(self.makeChunksFileSuffixLabel, 4, 0)
+        self.layout.addWidget(self.makeChunksFileSuffix, 4, 1)
+        self.layout.addWidget(self.makeChunksButton, 4, 2)
+        self.layout.addWidget(self.saveChunkingSettingsButton, 4, 3)
 
-        self.layout.addWidget(self.miscPrepLabel, 7, 0)
+        self.layout.addWidget(self.miscPrepLabel, 5, 0)
 
-        self.layout.addWidget(self.lineEndSpaceRemoveButton, 8, 0)
-        self.layout.addWidget(self.lineStartSpaceRemoveButton, 8, 1)
-        self.layout.addWidget(self.doubleNewlineRemoveButton, 8, 2)
-        self.layout.addWidget(self.blockLayoutRemoveButton, 8, 3)
-        self.layout.addWidget(self.badDinkusReplaceButton, 8, 4)
+        self.layout.addWidget(self.lineEndSpaceRemoveButton, 6, 0)
+        self.layout.addWidget(self.lineStartSpaceRemoveButton, 6, 1)
+        self.layout.addWidget(self.doubleNewlineRemoveButton, 6, 2)
+        self.layout.addWidget(self.blockLayoutRemoveButton, 6, 3)
+        self.layout.addWidget(self.badDinkusReplaceButton, 6, 4)
 
     def getDataStats(self):
         # characters:
@@ -1162,6 +1171,15 @@ class StatViewer(QWidget):
         # stats and token distribution export:
         self.exportStatsAndTknDistButton = QPushButton('Export statistics')
         self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
+
+        if not findMainWindow().nltkLoaded:
+            # print('nltk modules not checked')
+            nltk.download('punkt')
+            nltk.download('averaged_perceptron_tagger')
+            findMainWindow().nltkLoaded = True
+        else:
+            # print('nltk modules checked')
+            pass
 
         self.getDataStats()
 
