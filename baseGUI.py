@@ -782,7 +782,6 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.blockLayoutRemoveButton, 6, 3)
         self.layout.addWidget(self.badDinkusReplaceButton, 6, 4)
 
-
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
