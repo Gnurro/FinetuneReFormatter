@@ -7,8 +7,6 @@ TODO:
     - check for lines beginning with lowercase
     -
     - Fix empty file InLine mode crash
-    -
-    - move findMainWindow() outside of spec classes, iE make it static!
 """
 
 import sys
@@ -22,15 +20,15 @@ from GPT2.encoder import get_encoder
 
 import tokensToUTF
 
-import nltk
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
 from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy, QMessageBox, QShortcut
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
+
+import nltk
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 # more handy encoder reference:
 encoder = get_encoder()
@@ -39,7 +37,7 @@ fixEncodes = tokensToUTF.getFixEncodes()
 
 
 def findMainWindow():
-    """helper method to conveniently get the MainWindow widget object"""
+    """helper function to conveniently get the MainWindow widget object"""
     for widget in app.topLevelWidgets():
         if isinstance(widget, QMainWindow):
             return widget
@@ -137,6 +135,11 @@ class MainWindow(QMainWindow):
             self.curMode = 'InitialPrep'
             curInitialPrep = InitialPrep()
             self.setCentralWidget(curInitialPrep)
+        if modeID == 'StatViewer':
+            print('Set mode to StatViewer.')
+            self.curMode = 'StatViewer'
+            curStatViewer = StatViewer()
+            self.setCentralWidget(curStatViewer)
 
     def switchMode(self):
         """quickly switch between GUI modes"""
@@ -147,6 +150,8 @@ class MainWindow(QMainWindow):
         elif self.curMode == 'SourceInspector':
             self.setMode('InitialPrep')
         elif self.curMode == 'InitialPrep':
+            self.setMode('StatViewer')
+        elif self.curMode == 'StatViewer':
             self.setMode('SourceInspector')
 
     def fileSelect(self):
@@ -164,7 +169,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.about(self, 'Error', f'The selected file ({self.curFileInfo[0]}) is not compatible! Make sure text files are UTF-8.')
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
-                self.allowedModes = ['InitialPrep', 'SourceInspector']
+                self.allowedModes = ['InitialPrep', 'SourceInspector', 'StatViewer']
                 self.setMode('SourceInspector')
                 # self.setMode('InitialPrep')
                 self._createMenu()
@@ -232,6 +237,9 @@ class MainWindow(QMainWindow):
 
                 if allowedMode == 'SourceInspector':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('SourceInspector'))
+
+                if allowedMode == 'StatViewer':
+                    self.menuMode.addAction(allowedMode, lambda: self.setMode('StatViewer'))
 
                 if allowedMode == 'ChunkStack':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkStack'))
@@ -1113,7 +1121,8 @@ class StatViewer(QWidget):
     def __init__(self):
         super(StatViewer, self).__init__()
 
-        self.layout = QVBoxLayout()
+        # self.layout = QVBoxLayout()
+        self.layout = QGridLayout()
         self.setLayout(self.layout)
 
         self.curCharCount = 0
@@ -1128,6 +1137,193 @@ class StatViewer(QWidget):
         self.tokenDistribution = {}
 
         self.taggedPOS = []
+
+        self.dataStatsLabel = QLabel('Stats:')
+        self.dataStatsLabel.setAlignment(Qt.AlignTop)
+        # placeholder string for sentence endings:
+        self.sentenceEndPlaceholder = '%%%%%'
+        if findMainWindow().settings:
+            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+        self.sentences = []
+        # word distribution:
+        self.uniqueWords = []
+        self.wordDistribution = {}
+        # word distribution button:
+        self.wordDistButton = QPushButton('Calculate word distribution')
+        self.wordDistButton.clicked.connect(self.getWordDistribution)
+        # tokenize button:
+        self.tokenizeButton = QPushButton('Tokenize data')
+        self.tokenizeButton.clicked.connect(self.tokenizeData)
+        # token distribution:
+        self.tokenDistLabel = QLabel('Token distribution:')
+        self.tokenDistributionButton = QPushButton('Calculate token distribution')
+        self.tokenDistributionButton.setEnabled(False)
+        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
+        # stats and token distribution export:
+        self.exportStatsAndTknDistButton = QPushButton('Export statistics')
+        self.exportStatsAndTknDistButton.clicked.connect(self.exportStatsAndTknDist)
+
+        self.getDataStats()
+
+        # print('got stats')
+
+        self.layout.addWidget(self.wordDistButton, 0, 0)
+        # print('layouted word dist button')
+        self.layout.addWidget(self.tokenizeButton, 0, 1)
+        # print('layouted tokenize button')
+        self.layout.addWidget(self.tokenDistributionButton, 0, 2)
+        # print('layouted token dist button')
+        self.layout.addWidget(self.exportStatsAndTknDistButton, 0, 3)
+        # print('layouted export button')
+
+        self.layout.addWidget(self.dataStatsLabel, 1, 0)
+        self.layout.addWidget(self.tokenDistLabel, 1, 1)
+
+    def getDataStats(self):
+        # print('getting data stats')
+        # characters:
+        self.curCharCount = len(findMainWindow().curData)
+        # words:
+        self.words = findMainWindow().curData.split()
+        self.curWordCount = len(self.words)
+        # lines:
+        self.curLines = findMainWindow().curData.split('\n')
+        self.curLineCount = len(self.curLines)
+        # sentences:
+        sentenceEnders = ['.', '!', '?', ':']
+        if findMainWindow().settings:
+            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
+        rawSentencesMarked = findMainWindow().curData
+        for sentenceEnder in sentenceEnders:
+            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
+        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+        self.getLineLengths()
+
+        self.getPOS()
+
+    def getWordDistribution(self):
+        for word in self.words:
+            if word not in self.uniqueWords:
+                self.uniqueWords.append(word)
+            if word not in self.wordDistribution.keys():
+                self.wordDistribution[word] = 1
+            elif word in self.wordDistribution.keys():
+                self.wordDistribution[word] += 1
+
+        self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
+
+        self.uniqueWordCount = len(self.uniqueWords)
+
+        print(self.wordDistribution)
+
+    def getLineLengths(self):
+        for line in self.curLines:
+            self.curLineLengths.append(len(line))
+
+        print(self.curLineLengths)
+
+    def getPOS(self):
+        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
+        # print(self.taggedPOS)
+        self.verbCount = 0
+        for word, pos in self.taggedPOS:
+            if 'VB' in pos:
+                self.verbCount += 1
+        print(f"Number of verbs: {self.verbCount}")
+
+    def tokenizeData(self):
+        self.tokens = encoder.encode(findMainWindow().curData)
+        self.tokenCount = len(self.tokens)
+        # disable button:
+        self.tokenizeButton.setEnabled(False)
+        # enable token distribution button:
+        self.tokenDistributionButton.setEnabled(True)
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+    def calculateTokenDistribution(self):
+        """recursively iterate through data and count token occurrences"""
+        for token in self.tokens:
+            if token not in self.uniqueTokens:
+                self.uniqueTokens.append(token)
+            if token not in self.tokenDistribution.keys():
+                self.tokenDistribution[token] = 1
+            elif token in self.tokenDistribution.keys():
+                self.tokenDistribution[token] += 1
+
+        self.uniqueTokenCount = len(self.uniqueTokens)
+
+        self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
+        showTokenDistString = ''
+        topTokenAmount = 10
+        if findMainWindow().settings:
+            topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
+        for tokenFrequency in self.tokenDistribution[:topTokenAmount]:
+            for key, value in fixEncodes.items():
+                if value == tokenFrequency[0]:
+                    curToken = key
+            showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
+
+        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
+
+        # put it all together and display:
+        self.dataStatsLabel.setText(f'Stats:\n'
+                                    f'Number of characters: {self.curCharCount}\n'
+                                    f'Number of words (approximately): {self.curWordCount}\n'
+                                    f'Number of lines: {self.curLineCount}\n'
+                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+        # disable button to avoid crashes:
+        self.tokenDistributionButton.setEnabled(False)
+        # self.exportStatsAndTknDistButton.setEnabled(True)
+
+    def exportStatsAndTknDist(self):
+        # exports data statistics
+        statsData = {
+            'counts': {
+                'characters': self.curCharCount,
+                'words': self.curWordCount,
+                'lines': self.curLineCount,
+                'sentences': len(self.sentences),
+                'verbs': self.verbCount,
+                'tokens': self.tokenCount,
+                'uniqueTokens': self.uniqueTokenCount,
+            }
+        }
+        if self.tokenDistribution:
+
+            decodedTokenDist = []
+            for tokenFrequency in self.tokenDistribution:
+                for key, value in fixEncodes.items():
+                    if value == tokenFrequency[0]:
+                        curDecodeToken = key
+                decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
+
+            statsData['tokenDistribution'] = decodedTokenDist
+        if self.wordDistribution:
+            statsData['wordDistribution'] = self.wordDistribution
+        if self.curLineLengths:
+            statsData['lineLengths'] = self.curLineLengths
+        with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
+                  'w', encoding='utf-8') as statsOutFile:
+            statsOutFile.write(json.dumps(statsData))
 
 
 class ChunkStack(QWidget):
