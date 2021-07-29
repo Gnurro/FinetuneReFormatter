@@ -960,6 +960,7 @@ class StatViewer(QWidget):
 
         # word distribution:
         self.uniqueWords = []
+        self.uniqueWordCount = 0
         self.wordDistribution = {}
 
         if not findMainWindow().nltkLoaded:
@@ -971,8 +972,6 @@ class StatViewer(QWidget):
             # print('nltk modules checked')
             pass
 
-        # self.statsThread = StatsThread()
-        # self.statsThread.taskFinished.connect(self.stopBusyBar)
 
         self.initStatsHeader()
         self.initStatsCalcButtons()
@@ -1001,7 +1000,7 @@ class StatViewer(QWidget):
         # word distribution button:
         self.wordDistButton = QPushButton('Calculate word distribution')
         self.wordDistButton.setEnabled(False)
-        self.wordDistButton.clicked.connect(self.getWordDistribution)
+        self.wordDistButton.clicked.connect(self.getWordDistWithBar)
         self.statCalcButtonsLayout.addWidget(self.wordDistButton)
 
         # tokenize button:
@@ -1068,7 +1067,7 @@ class StatViewer(QWidget):
         self.layout.addLayout(self.statExportButtonsLayout)
 
     def updateStatsData(self, data):
-        print(f'got data: {data[0]}, {data[1]}')
+        print(f'got data: {data[0]}')
         setattr(self, data[0], data[1])
 
     def getStatsWithBar(self):
@@ -1104,45 +1103,23 @@ class StatViewer(QWidget):
         self.statsThread.start()
 
     def getWordDistWithBar(self):
-        # self.statsThread = None
         self.statsThread = QThread()
-        self.statsThread.taskFinished.connect(self.stopBusyBar)
+        self.statsWorker = StatsWorker('getWordDistribution')
+        self.statsWorker.moveToThread(self.statsThread)
 
-        # self.setBarRange(0, self.curWordCount + 2)
+        self.statsThread.started.connect(self.statsWorker.run)
+
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+
+        self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+
         self.startBusyBar()
         self.statsThread.start()
 
-    def getDataStats(self):
-        # print('getting data stats')
-        # characters:
-        self.curCharCount = len(findMainWindow().curData)
-        # words:
-        self.words = findMainWindow().curData.split()
-        self.curWordCount = len(self.words)
-        # lines:
-        self.curLines = findMainWindow().curData.split('\n')
-        self.curLineCount = len(self.curLines)
-        # sentences:
-        sentenceEnders = ['.', '!', '?', ':']
-        if findMainWindow().settings:
-            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
-        rawSentencesMarked = findMainWindow().curData
-        for sentenceEnder in sentenceEnders:
-            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
-        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
-        # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
-
-        self.wordDistButton.setEnabled(True)
-        # self.getLineLengths()
-
-        # self.getPOS()
+        print(self.uniqueWordCount)
 
     def getLineLengths(self):
         # show that this thing is working:
@@ -1164,27 +1141,6 @@ class StatViewer(QWidget):
             if 'VB' in pos:
                 self.verbCount += 1
         print(f"Number of verbs: {self.verbCount}")
-
-    def getWordDistribution(self):
-        for word in self.words:
-            if word not in self.uniqueWords:
-                self.uniqueWords.append(word)
-            if word not in self.wordDistribution.keys():
-                self.wordDistribution[word] = 1
-            elif word in self.wordDistribution.keys():
-                self.wordDistribution[word] += 1
-            # self.setBarValue(self.statProgressBar.value() + 1)
-
-        self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
-        # self.setBarValue(self.statProgressBar.value() + 1)
-
-        self.uniqueWordCount = len(self.uniqueWords)
-        # self.setBarValue(self.statProgressBar.value() + 1)
-
-        print(self.uniqueWordCount)
-
-        # print(self.wordDistribution)
-        # self.setBarValue(self.statProgressBar.value() + 1)
 
     def tokenizeData(self):
         self.tokens = encoder.encode(findMainWindow().curData)
@@ -1283,7 +1239,7 @@ class StatsWorker(QObject):
 
     def run(self):
         if self.curTask == 'getWordDistribution':
-            findMainWindow().children()[3].getWordDistribution()
+            self.getWordDistribution()
         elif self.curTask == 'getDataStats':
             self.getDataStats()
         print('finished task')
@@ -1327,6 +1283,33 @@ class StatsWorker(QObject):
         self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
         self.returnTuple = ('sentences', self.sentences)
         self.taskReturn.emit(self.returnTuple)
+
+    def getWordDistribution(self):
+        self.uniqueWords = []
+        self.wordDistribution = {}
+        for word in findMainWindow().children()[3].words:
+            if word not in self.uniqueWords:
+                self.uniqueWords.append(word)
+            if word not in self.wordDistribution.keys():
+                self.wordDistribution[word] = 1
+            elif word in self.wordDistribution.keys():
+                self.wordDistribution[word] += 1
+
+        self.returnTuple = ('uniqueWords', self.uniqueWords)
+        self.taskReturn.emit(self.returnTuple)
+
+        self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
+        self.returnTuple = ('wordDistribution', self.wordDistribution)
+        self.taskReturn.emit(self.returnTuple)
+
+        self.uniqueWordCount = len(self.uniqueWords)
+        self.returnTuple = ('uniqueWordCount', self.uniqueWordCount)
+        self.taskReturn.emit(self.returnTuple)
+
+        # print(self.uniqueWordCount)
+
+        # print(self.wordDistribution)
+        # self.setBarValue(self.statProgressBar.value() + 1)
 
 
 class ChunkStack(QWidget):
