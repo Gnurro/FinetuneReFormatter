@@ -1304,12 +1304,14 @@ class StatsWorker(QObject):
         self.taskReturn.emit(self.returnTuple)
 
     def getWordDistribution(self):
-        self.wordCount = findMainWindow().children()[3].curWordCount
+        # print(findMainWindow().children())
+        # print(findMainWindow().children()[-1])
+        self.wordCount = findMainWindow().children()[-1].curWordCount
         self.taskProgressBarMax.emit(self.wordCount)
         self.uniqueWords = []
         self.wordDistribution = {}
         self.curWordIndex = 0
-        for word in findMainWindow().children()[3].words:
+        for word in findMainWindow().children()[-1].words:
             if word not in self.uniqueWords:
                 self.uniqueWords.append(word)
             if word not in self.wordDistribution.keys():
