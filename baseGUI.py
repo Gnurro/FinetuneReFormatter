@@ -175,8 +175,8 @@ class MainWindow(QMainWindow):
             else:
                 print('Current file type is plaintext, allowing appropriate modes...')
                 self.allowedModes = ['InitialPrep', 'SourceInspector', 'StatViewer']
-                # self.setMode('SourceInspector')
-                self.setMode('StatViewer')
+                self.setMode('SourceInspector')
+                # self.setMode('StatViewer')
                 self._createMenu()
                 self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
         elif self.curFileType == 'json':
@@ -749,6 +749,11 @@ class InitialPrep(QWidget):
         # remove block layout newlines:
         self.blockLayoutRemoveButton = QPushButton('Remove block layout')
         self.blockLayoutRemoveButton.clicked.connect(self.blockLayoutRemove)
+
+        # find bad paragraph break characters:
+        self.badDinkusFindButton = QPushButton('Find bad breakers')
+        self.badDinkusFindButton.clicked.connect(self.badDinkusFind)
+        self.badDinkusLabel = QLabel('Found bad breakers:')
         # replace bad paragraph break characters:
         self.badDinkusReplaceButton = QPushButton('Remove bad paragraph break characters')
         self.badDinkusReplaceButton.clicked.connect(self.badDinkusReplace)
@@ -779,7 +784,10 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.lineStartSpaceRemoveButton, 6, 1)
         self.layout.addWidget(self.doubleNewlineRemoveButton, 6, 2)
         self.layout.addWidget(self.blockLayoutRemoveButton, 6, 3)
-        self.layout.addWidget(self.badDinkusReplaceButton, 6, 4)
+
+        self.layout.addWidget(self.badDinkusFindButton, 7, 0)
+        self.layout.addWidget(self.badDinkusLabel, 7, 1)
+        self.layout.addWidget(self.badDinkusReplaceButton, 7, 2)
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
@@ -921,6 +929,14 @@ class InitialPrep(QWidget):
             findMainWindow().curData = findMainWindow().curData.replace(doubleNewlinePlaceholder, '\n\n')
             findMainWindow().toggleFileUnsaved()
 
+    def badDinkusFind(self):
+        print('catching dem dinkusses')
+        self.badDinkusExp = r'\n[^a-zA-Z0-9_\n]+\n'
+        print('set regex')
+        self.foundDinkusses = re.findall(self.badDinkusExp, findMainWindow().curData)
+        print('done catching')
+        self.badDinkusLabel.setText(''.join(self.foundDinkusses))
+
     def badDinkusReplace(self):
         if findMainWindow().settings:
             badDinkusList = findMainWindow().settings['InitialPrep']['badDinkusList']
@@ -1040,6 +1056,9 @@ class StatViewer(QWidget):
     def setBarRange(self, min, max):
         self.statProgressBar.setRange(min, max)
 
+    def setBarMax(self, max):
+        self.statProgressBar.setRange(0, max)
+
     def setBarValue(self, value):
         self.statProgressBar.setValue(value)
 
@@ -1050,10 +1069,12 @@ class StatViewer(QWidget):
     def initStatsDisplay(self):
         self.statDisplayLayout = QHBoxLayout()
 
-        self.dataStatsLabel = QLabel('')
+        self.dataStatsLabel = QLabel('Basics:')
         self.statDisplayLayout.addWidget(self.dataStatsLabel)
 
-        self.tokenDistLabel = QLabel('Token distribution:')
+        self.tokenDistLabel = QLabel(f'Token distribution:\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
         self.statDisplayLayout.addWidget(self.tokenDistLabel)
 
         self.layout.addLayout(self.statDisplayLayout)
@@ -1081,23 +1102,19 @@ class StatViewer(QWidget):
         self.statsWorker.taskFinished.connect(lambda: self.wordDistButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda:
-                                          self.dataStatsLabel.setText(f'Stats:\n'
+                                          self.dataStatsLabel.setText(f'Basics:\n'
                                                                       f'Number of characters: {self.curCharCount}\n'
                                                                       f'Number of words (approximately): {self.curWordCount}\n'
                                                                       f'Number of lines: {self.curLineCount}\n'
-                                                                      f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                                                      f'Number of tokens: {self.tokenCount}\n'
-                                                                      f'Number of unique tokens: {self.uniqueTokenCount}')
+                                                                      f'Number of sentences (approximately): {len(self.sentences)}')
                                           )
-        # self.statsWorker.taskProgress.connect(self.setBarValue)
+
         self.statsWorker.taskReturn.connect(self.updateStatsData)
 
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
 
         self.statsThread.finished.connect(self.statsThread.deleteLater)
-
-        # self.statsThread.taskFinished.connect(self.stopBusyBar)
 
         self.startBusyBar()
         self.statsThread.start()
@@ -1110,16 +1127,17 @@ class StatViewer(QWidget):
         self.statsThread.started.connect(self.statsWorker.run)
 
         self.statsWorker.taskReturn.connect(self.updateStatsData)
+        self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
+        self.statsWorker.taskProgress.connect(self.setBarValue)
 
-        self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        self.statsWorker.taskFinished.connect(self.resetBar)
+        self.statsWorker.taskFinished.connect(lambda: print(self.uniqueWordCount))
+
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
         self.statsThread.finished.connect(self.statsThread.deleteLater)
 
-        self.startBusyBar()
         self.statsThread.start()
-
-        print(self.uniqueWordCount)
 
     def getLineLengths(self):
         # show that this thing is working:
@@ -1131,9 +1149,7 @@ class StatViewer(QWidget):
         # print(self.curLineLengths)
 
     def getPOS(self):
-        # show that this thing is working:
-        # self.statProgressBar.setMinimum(0)
-        # self.statProgressBar.setMaximum(0)
+        # TODO: move to worker
         self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
         # print(self.taggedPOS)
         self.verbCount = 0
@@ -1143,6 +1159,7 @@ class StatViewer(QWidget):
         print(f"Number of verbs: {self.verbCount}")
 
     def tokenizeData(self):
+        # TODO: move to worker
         self.tokens = encoder.encode(findMainWindow().curData)
         self.tokenCount = len(self.tokens)
         # disable button:
@@ -1160,6 +1177,7 @@ class StatViewer(QWidget):
 
     def calculateTokenDistribution(self):
         """recursively iterate through data and count token occurrences"""
+        # TODO: move to worker
         for token in self.tokens:
             if token not in self.uniqueTokens:
                 self.uniqueTokens.append(token)
@@ -1230,8 +1248,9 @@ class StatViewer(QWidget):
 
 class StatsWorker(QObject):
     taskFinished = QtCore.pyqtSignal()
-    taskProgress = QtCore.pyqtSignal(int)
     taskReturn = QtCore.pyqtSignal(tuple)
+    taskProgress = QtCore.pyqtSignal(int)
+    taskProgressBarMax = QtCore.pyqtSignal(int)
 
     def __init__(self, task):
         super(StatsWorker, self).__init__()
@@ -1285,8 +1304,11 @@ class StatsWorker(QObject):
         self.taskReturn.emit(self.returnTuple)
 
     def getWordDistribution(self):
+        self.wordCount = findMainWindow().children()[3].curWordCount
+        self.taskProgressBarMax.emit(self.wordCount)
         self.uniqueWords = []
         self.wordDistribution = {}
+        self.curWordIndex = 0
         for word in findMainWindow().children()[3].words:
             if word not in self.uniqueWords:
                 self.uniqueWords.append(word)
@@ -1294,6 +1316,8 @@ class StatsWorker(QObject):
                 self.wordDistribution[word] = 1
             elif word in self.wordDistribution.keys():
                 self.wordDistribution[word] += 1
+            self.curWordIndex += 1
+            self.taskProgress.emit(self.curWordIndex)
 
         self.returnTuple = ('uniqueWords', self.uniqueWords)
         self.taskReturn.emit(self.returnTuple)
