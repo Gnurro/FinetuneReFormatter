@@ -955,11 +955,11 @@ class StatViewer(QWidget):
         # self.layout = QGridLayout()
         self.setLayout(self.layout)
 
-        self.curCharCount = 0
-        self.curWordCount = 0
-        self.curLines = []
-        self.curLineCount = 0
-        self.curLineLengths = []
+        self.charCount = 0
+        self.wordCount = 0
+        self.lines = []
+        self.lineCount = 0
+        self.lineLengths = []
         self.tokens = []
         self.tokenCount = 0
         self.uniqueTokens = []
@@ -987,7 +987,6 @@ class StatViewer(QWidget):
         else:
             # print('nltk modules checked')
             pass
-
 
         self.initStatsHeader()
         self.initStatsCalcButtons()
@@ -1050,7 +1049,6 @@ class StatViewer(QWidget):
 
     def stopBusyBar(self):
         # show that this thing is done:
-        # self.statProgressBar.setMinimum(0)
         self.statProgressBar.setMaximum(100)
 
     def setBarRange(self, min, max):
@@ -1063,7 +1061,6 @@ class StatViewer(QWidget):
         self.statProgressBar.setValue(value)
 
     def resetBar(self):
-        print('resetting bar')
         self.statProgressBar.reset()
 
     def initStatsDisplay(self):
@@ -1073,8 +1070,8 @@ class StatViewer(QWidget):
         self.statDisplayLayout.addWidget(self.dataStatsLabel)
 
         self.tokenDistLabel = QLabel(f'Token distribution:\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+                                     f'Number of tokens: {self.tokenCount}\n'
+                                     f'Number of unique tokens: {self.uniqueTokenCount}')
         self.statDisplayLayout.addWidget(self.tokenDistLabel)
 
         self.layout.addLayout(self.statDisplayLayout)
@@ -1088,61 +1085,59 @@ class StatViewer(QWidget):
         self.layout.addLayout(self.statExportButtonsLayout)
 
     def updateStatsData(self, data):
-        print(f'got data: {data[0]}')
+        # print(f'got data: {data[0]}')
         setattr(self, data[0], data[1])
 
     def getStatsWithBar(self):
+        """Calculates basic statistics in a separate thread to allow progress bar use"""
+        # create separate thread with appropriate worker:
         self.statsThread = QThread()
         self.statsWorker = StatsWorker('getDataStats')
         self.statsWorker.moveToThread(self.statsThread)
-
         self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
-
         self.statsWorker.taskFinished.connect(lambda: self.wordDistButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda:
-                                          self.dataStatsLabel.setText(f'Basics:\n'
-                                                                      f'Number of characters: {self.curCharCount}\n'
-                                                                      f'Number of words (approximately): {self.curWordCount}\n'
-                                                                      f'Number of lines: {self.curLineCount}\n'
-                                                                      f'Number of sentences (approximately): {len(self.sentences)}')
-                                          )
-
-        self.statsWorker.taskReturn.connect(self.updateStatsData)
-
+                                              self.dataStatsLabel.setText(f'Basics:\n'
+                                                                          f'Number of characters: {self.charCount}\n'
+                                                                          f'Number of words: ~{self.wordCount}\n'
+                                                                          f'Number of lines: {self.lineCount}\n'
+                                                                          f'Number of sentences: ~{len(self.sentences)}')
+                                              )
+        # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
-
         self.statsThread.finished.connect(self.statsThread.deleteLater)
-
+        # start the busy indicator and run worker:
         self.startBusyBar()
         self.statsThread.start()
 
     def getWordDistWithBar(self):
+        """Calculate word distribution using separate thread to allow progress bar updates"""
+        # create separate thread with appropriate worker:
         self.statsThread = QThread()
         self.statsWorker = StatsWorker('getWordDistribution')
         self.statsWorker.moveToThread(self.statsThread)
-
         self.statsThread.started.connect(self.statsWorker.run)
-
+        # connect the worker to get data while active:
         self.statsWorker.taskReturn.connect(self.updateStatsData)
         self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
         self.statsWorker.taskProgress.connect(self.setBarValue)
-
+        # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
         self.statsWorker.taskFinished.connect(lambda: print(self.uniqueWordCount))
-
+        # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
         self.statsThread.finished.connect(self.statsThread.deleteLater)
-
+        # start the worker:
         self.statsThread.start()
 
     def getLineLengths(self):
-        # show that this thing is working:
-        # self.statProgressBar.setMinimum(0)
-        # self.statProgressBar.setMaximum(0)
         for line in self.curLines:
             self.curLineLengths.append(len(line))
 
@@ -1261,37 +1256,32 @@ class StatsWorker(QObject):
             self.getWordDistribution()
         elif self.curTask == 'getDataStats':
             self.getDataStats()
-        print('finished task')
+        # print('finished task')
         self.taskFinished.emit()
 
-    def getDataStats(self):
-        print('worker: getting data stats')
-        # characters:
-        # self.curCharCount = len(findMainWindow().curData)
-        self.curCharCount = len(findMainWindow().curData)
-        self.returnTuple = ('curCharCount', self.curCharCount)
+    def returnData(self, dataName):
+        self.returnTuple = (dataName, getattr(self, dataName))
         self.taskReturn.emit(self.returnTuple)
-        print('emitted data signal')
+
+    def getDataStats(self):
+        # characters:
+        self.curCharCount = len(findMainWindow().curData)
+        self.returnData('curCharCount')
         # words:
         self.words = findMainWindow().curData.split()
-        self.returnTuple = ('words', self.words)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('words')
         self.curWordCount = len(self.words)
-        self.returnTuple = ('curWordCount', self.curWordCount)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('curWordCount')
         # lines:
         self.curLines = findMainWindow().curData.split('\n')
-        self.returnTuple = ('curLines', self.curLines)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('curLines')
         self.curLineCount = len(self.curLines)
-        self.returnTuple = ('curLineCount', self.curLineCount)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('curLineCount')
         # sentences:
         if findMainWindow().settings:
             sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
         else:
             sentenceEnders = ['.', '!', '?', ':']
-
         if findMainWindow().settings:
             self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
         else:
@@ -1300,12 +1290,9 @@ class StatsWorker(QObject):
         for sentenceEnder in sentenceEnders:
             rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}", f"{sentenceEnder}{self.sentenceEndPlaceholder}")
         self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
-        self.returnTuple = ('sentences', self.sentences)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('sentences')
 
     def getWordDistribution(self):
-        # print(findMainWindow().children())
-        # print(findMainWindow().children()[-1])
         self.wordCount = findMainWindow().children()[-1].curWordCount
         self.taskProgressBarMax.emit(self.wordCount)
         self.uniqueWords = []
@@ -1321,21 +1308,13 @@ class StatsWorker(QObject):
             self.curWordIndex += 1
             self.taskProgress.emit(self.curWordIndex)
 
-        self.returnTuple = ('uniqueWords', self.uniqueWords)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('uniqueWords')
 
         self.wordDistribution = sorted(self.wordDistribution.items(), key=lambda x: x[1], reverse=True)
-        self.returnTuple = ('wordDistribution', self.wordDistribution)
-        self.taskReturn.emit(self.returnTuple)
+        self.returnData('wordDistribution')
 
         self.uniqueWordCount = len(self.uniqueWords)
-        self.returnTuple = ('uniqueWordCount', self.uniqueWordCount)
-        self.taskReturn.emit(self.returnTuple)
-
-        # print(self.uniqueWordCount)
-
-        # print(self.wordDistribution)
-        # self.setBarValue(self.statProgressBar.value() + 1)
+        self.returnData('uniqueWordCount')
 
 
 class ChunkStack(QWidget):
