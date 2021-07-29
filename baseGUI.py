@@ -1265,18 +1265,18 @@ class StatsWorker(QObject):
 
     def getDataStats(self):
         # characters:
-        self.curCharCount = len(findMainWindow().curData)
-        self.returnData('curCharCount')
+        self.charCount = len(findMainWindow().curData)
+        self.returnData('charCount')
         # words:
         self.words = findMainWindow().curData.split()
         self.returnData('words')
-        self.curWordCount = len(self.words)
-        self.returnData('curWordCount')
+        self.wordCount = len(self.words)
+        self.returnData('wordCount')
         # lines:
-        self.curLines = findMainWindow().curData.split('\n')
-        self.returnData('curLines')
-        self.curLineCount = len(self.curLines)
-        self.returnData('curLineCount')
+        self.lines = findMainWindow().curData.split('\n')
+        self.returnData('lines')
+        self.lineCount = len(self.curLines)
+        self.returnData('lineCount')
         # sentences:
         if findMainWindow().settings:
             sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
@@ -1293,7 +1293,7 @@ class StatsWorker(QObject):
         self.returnData('sentences')
 
     def getWordDistribution(self):
-        self.wordCount = findMainWindow().children()[-1].curWordCount
+        self.wordCount = findMainWindow().children()[-1].wordCount
         self.taskProgressBarMax.emit(self.wordCount)
         self.uniqueWords = []
         self.wordDistribution = {}
