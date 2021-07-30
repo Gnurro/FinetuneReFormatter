@@ -979,7 +979,7 @@ class InitialPrep(QWidget):
 
 
 class StatViewer(QWidget):
-    # TODO: display all the things!
+    # TODO: properly integrate token bigram counter
     # TODO: count lines with quotes
     def __init__(self):
         super(StatViewer, self).__init__()
@@ -1001,6 +1001,7 @@ class StatViewer(QWidget):
         self.uniqueTokens = []
         self.uniqueTokenCount = 0
         self.tokenDistribution = {}
+        self.tokenBigramCounts = []
         # POS:
         self.taggedPOS = []
         self.verbCount = 0
@@ -1050,6 +1051,12 @@ class StatViewer(QWidget):
         self.tokenDistributionButton.setEnabled(False)
         self.tokenDistributionButton.clicked.connect(self.calculateTokenDistributionWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenDistributionButton)
+
+        # token bigram count button:
+        self.tokenBigramsButton = QPushButton('Calculate token bigram counts')
+        self.tokenBigramsButton.setEnabled(False)
+        self.tokenBigramsButton.clicked.connect(self.getTokenBigramsWithBar)
+        self.statCalcButtonsLayout.addWidget(self.tokenBigramsButton)
 
         # line lengths button:
         self.lineLengthsButton = QPushButton('Count line lengths')
@@ -1225,8 +1232,10 @@ class StatViewer(QWidget):
         self.statsWorker.taskReturn.connect(self.updateStatsData)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        # self.statsWorker.taskFinished.connect(lambda: print(self.tokens))
         self.statsWorker.taskFinished.connect(lambda: self.tokenizeButton.setEnabled(False))
         self.statsWorker.taskFinished.connect(lambda: self.tokenDistributionButton.setEnabled(True))
+        self.statsWorker.taskFinished.connect(lambda: self.tokenBigramsButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(lambda: self.tokenDistLabel.setText(f'Tokens:\n'
                                                                                   f'Number of tokens: {self.tokenCount}\n'))
         # clean up thread when finished:
@@ -1279,6 +1288,48 @@ class StatViewer(QWidget):
         # self.tokenDistributionButton.setEnabled(False)
         # self.exportStatsAndTknDistButton.setEnabled(True)
 
+    def getTokenBigramsWithBar(self):
+        """Calculates token bigram counts in a separate thread to allow progress bar use"""
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('getTokenBigrams')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
+        self.statsWorker.taskProgress.connect(self.setBarValue)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(self.resetBar)
+        self.statsWorker.taskFinished.connect(lambda: self.showTopTokenBigrams())
+        self.statsWorker.taskFinished.connect(lambda: self.exportStatsAndTknDist())
+        # self.statsWorker.taskFinished.connect(lambda: print(self.tokenBigramCounts))
+        # self.statsWorker.taskFinished.connect(self.showTopTokens)
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the worker:
+        self.statsThread.start()
+
+    def showTopTokenBigrams(self):
+        showTokenBigramsString = ''
+        topTokenBigramAmount = 10
+        # if findMainWindow().settings:
+            # topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
+        for tokenBigramFrequency in self.tokenBigramCounts[:topTokenBigramAmount]:
+            curTokenBigram = ''
+            for tokenID in tokenBigramFrequency[:2]:
+                for key, value in fixEncodes.items():
+                    if value == tokenID:
+                        curToken = key
+                curTokenBigram += curToken
+            showTokenBigramsString += f'"{curTokenBigram}" {tokenBigramFrequency[2]}\n'
+
+        # put it all together and display:
+        self.tokenDistLabel.setText(f'Tokens:\n'
+                                    f'Number of tokens: {self.tokenCount}\n'
+                                    f'Most frequent token bigrams:\n{showTokenBigramsString}')
+
     def exportStatsAndTknDist(self):
         # exports data statistics
         statsData = {
@@ -1308,6 +1359,8 @@ class StatViewer(QWidget):
             statsData['wordDistribution'] = self.wordDistribution
         if self.lineLengths:
             statsData['lineLengths'] = self.lineLengths
+        if self.tokenBigramCounts:
+            statsData['tokenBigramCounts'] = self.tokenBigramCounts
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
                   'w', encoding='utf-8') as statsOutFile:
             json.dump(statsData, statsOutFile, ensure_ascii=False)
@@ -1336,6 +1389,8 @@ class StatsWorker(QObject):
             self.tokenizeData()
         elif self.curTask == 'calculateTokenDistribution':
             self.calculateTokenDistribution()
+        elif self.curTask == 'getTokenBigrams':
+            self.getTokenBigrams()
         self.taskFinished.emit()
 
     def returnData(self, dataName):
@@ -1431,7 +1486,7 @@ class StatsWorker(QObject):
         self.taskProgressBarMax.emit(self.tokenCount)
         self.uniqueTokens = []
         self.tokenDistribution = {}
-        self.curTokenID = 0
+        self.curTokenIndex = 0
         for token in self.tokens:
             if token not in self.uniqueTokens:
                 self.uniqueTokens.append(token)
@@ -1439,13 +1494,39 @@ class StatsWorker(QObject):
                 self.tokenDistribution[token] = 1
             elif token in self.tokenDistribution.keys():
                 self.tokenDistribution[token] += 1
-            self.curTokenID += 1
-            self.taskProgress.emit(self.curTokenID)
+            self.curTokenIndex += 1
+            self.taskProgress.emit(self.curTokenIndex)
         self.returnData('uniqueTokens')
         self.uniqueTokenCount = len(self.uniqueTokens)
         self.returnData('uniqueTokenCount')
         self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
         self.returnData('tokenDistribution')
+
+    def getTokenBigrams(self):
+        self.tokens = findMainWindow().children()[-1].tokens
+        self.tokenCount = findMainWindow().children()[-1].tokenCount
+        self.taskProgressBarMax.emit(self.tokenCount)
+        self.curTokenIndex = 1
+        self.tokenBigrams = []
+        for tokenIndex in range(self.tokenCount-1):
+            self.tokenBigrams.append((self.tokens[tokenIndex], self.tokens[tokenIndex + 1]))
+            self.curTokenIndex += 1
+            self.taskProgress.emit(self.curTokenIndex)
+        print('got token bigrams')
+        self.uniqueTokenBigrams = list({*self.tokenBigrams})
+        print('got unique token bigrams')
+        self.taskProgressBarMax.emit(len(self.uniqueTokenBigrams))
+        self.curTokenIndex = 0
+        self.tokenBigramCounts = []
+        for tokenBigram in self.uniqueTokenBigrams:
+            self.tokenBigramCounts.append([tokenBigram[0], tokenBigram[1], self.tokenBigrams.count(tokenBigram)])
+            print(tokenBigram)
+            self.curTokenIndex += 1
+            self.taskProgress.emit(self.curTokenIndex)
+        print('got token bigram counts')
+        self.tokenBigramCounts = sorted(self.tokenBigramCounts, key=lambda x: x[2], reverse=True)
+        print('sorted token bigram counts')
+        self.returnData('tokenBigramCounts')
 
 
 class ChunkStack(QWidget):
