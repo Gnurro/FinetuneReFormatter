@@ -656,7 +656,7 @@ class QCodeEditor(QPlainTextEdit):
 
 class InitialPrep(QWidget):
     """
-    Utility mode to check raw data statistics and perform simple data preparation
+    Utility mode to perform simple data preparation
 
     TODO:
         - more quick utilities:
@@ -664,6 +664,8 @@ class InitialPrep(QWidget):
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
+        - QuickFixes:
+            -
         - re-chunk adventure logs
             - detect adventure logs first?
             - proper advlog check?
@@ -754,9 +756,18 @@ class InitialPrep(QWidget):
         self.badDinkusFindButton = QPushButton('Find bad breakers')
         self.badDinkusFindButton.clicked.connect(self.badDinkusFind)
         self.badDinkusLabel = QLabel('Found bad breakers:')
+        self.foundDinkusses = []
         # replace bad paragraph break characters:
-        self.badDinkusReplaceButton = QPushButton('Remove bad paragraph break characters')
+        self.badDinkusReplaceButton = QPushButton('Remove bad paragraph breakers')
         self.badDinkusReplaceButton.clicked.connect(self.badDinkusReplace)
+
+        # remove tab characters:
+        self.tabRemoveButton = QPushButton('Remove tab characters')
+        self.tabRemoveButton.clicked.connect(self.tabRemove)
+
+        # replace fancy quotes:
+        self.quoteReplaceButton = QPushButton('Replace fancy quote characters')
+        self.quoteReplaceButton.clicked.connect(self.quoteReplace)
 
         self.layout.addWidget(self.chopSentencesFileSuffixLabel, 0, 0)
         self.layout.addWidget(self.chopSentencesFileSuffix, 0, 1)
@@ -789,10 +800,13 @@ class InitialPrep(QWidget):
         self.layout.addWidget(self.badDinkusLabel, 7, 1)
         self.layout.addWidget(self.badDinkusReplaceButton, 7, 2)
 
+        self.layout.addWidget(self.tabRemoveButton, 8, 0)
+        self.layout.addWidget(self.quoteReplaceButton, 8, 1)
+
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
-            sentenceOutFile.write(json.dumps(self.sentences))
+            sentenceOutFile.write(json.dumps(self.sentences, ensure_ascii=False))
 
     def exportChunks(self):
         """
@@ -930,73 +944,81 @@ class InitialPrep(QWidget):
             findMainWindow().toggleFileUnsaved()
 
     def badDinkusFind(self):
-        print('catching dem dinkusses')
+        # print('catching dem dinkusses')
         self.badDinkusExp = r'\n[^a-zA-Z0-9_\n]+\n'
-        print('set regex')
+        # print('set regex')
         self.foundDinkusses = re.findall(self.badDinkusExp, findMainWindow().curData)
-        print('done catching')
-        self.badDinkusLabel.setText(''.join(self.foundDinkusses))
+        # print('done catching')
+        self.badDinkusLabel.setText(f'Found bad breakers:{"".join(self.foundDinkusses)}')
 
     def badDinkusReplace(self):
-        if findMainWindow().settings:
-            badDinkusList = findMainWindow().settings['InitialPrep']['badDinkusList']
+        if not self.foundDinkusses:
+            if findMainWindow().settings:
+                badDinkusList = findMainWindow().settings['InitialPrep']['badDinkusList']
+            else:
+                badDinkusList = ["❦", "§", "#", "◇", "◇ ◇ ◇", "◇◇◇", "◆", "◆◆◆", "◆ ◆ ◆", "◆ ◇ ◆", "●", "✽ ✽ ✽",
+                                 "※※※※※", "× ×", "~~~"]
         else:
-            badDinkusList = ["❦", "§", "#", "◇", "◇ ◇ ◇", "◇◇◇", "◆", "◆◆◆", "◆ ◆ ◆", "◆ ◇ ◆", "●", "✽ ✽ ✽", "※※※※※", "× ×", "~~~"]
+            badDinkusList = list(set(self.foundDinkusses))
+            for dinkusID in range(len(badDinkusList)):
+                badDinkusList[dinkusID] = badDinkusList[dinkusID].replace('\n', '')
         for badDinkus in badDinkusList:
             findMainWindow().curData = re.sub(f'\n{badDinkus}\n', '\n***\n', findMainWindow().curData)
+        findMainWindow().toggleFileUnsaved()
+
+    def tabRemove(self):
+        """removes tab characters"""
+        findMainWindow().curData = findMainWindow().curData.replace('\t', '')
+        findMainWindow().toggleFileUnsaved()
+
+    def quoteReplace(self):
+        """replaces fancy quote characters with standard ones"""
+        findMainWindow().curData = re.sub(r'[“”]', '"', findMainWindow().curData)
+        findMainWindow().curData = re.sub(r'[‘’]', "'", findMainWindow().curData)
+        findMainWindow().toggleFileUnsaved()
 
 
 class StatViewer(QWidget):
+    # TODO: display all the things!
+    # TODO: count lines with quotes
     def __init__(self):
         super(StatViewer, self).__init__()
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
-        # self.layout = QGridLayout()
         self.setLayout(self.layout)
-
+        # prepare attributes:
+        # basics:
         self.charCount = 0
         self.wordCount = 0
         self.lines = []
         self.lineCount = 0
         self.lineLengths = []
+        self.sentences = []
+        # tokens:
         self.tokens = []
         self.tokenCount = 0
         self.uniqueTokens = []
         self.uniqueTokenCount = 0
         self.tokenDistribution = {}
-
+        # POS:
         self.taggedPOS = []
-
-        # placeholder string for sentence endings:
-        self.sentenceEndPlaceholder = '%%%%%'
-        if findMainWindow().settings:
-            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
-        self.sentences = []
-
+        self.verbCount = 0
         # word distribution:
         self.uniqueWords = []
         self.uniqueWordCount = 0
         self.wordDistribution = {}
-
+        # check for needed nltk modules:
         if not findMainWindow().nltkLoaded:
-            # print('nltk modules not checked')
             nltk.download('punkt')
             nltk.download('averaged_perceptron_tagger')
             findMainWindow().nltkLoaded = True
-        else:
-            # print('nltk modules checked')
-            pass
-
+        # initialize layout:
         self.initStatsHeader()
         self.initStatsCalcButtons()
         self.initStatsProgressbar()
-
         self.initStatsDisplay()
-
         self.initStatsExportButtons()
-
-        # self.getDataStats()
 
     def initStatsHeader(self):
         self.statHeaderLayout = QHBoxLayout()
@@ -1020,13 +1042,13 @@ class StatViewer(QWidget):
 
         # tokenize button:
         self.tokenizeButton = QPushButton('Tokenize data')
-        self.tokenizeButton.clicked.connect(self.tokenizeData)
+        self.tokenizeButton.clicked.connect(self.tokenizeDataWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenizeButton)
 
         # token distribution button:
         self.tokenDistributionButton = QPushButton('Calculate token distribution')
         self.tokenDistributionButton.setEnabled(False)
-        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistribution)
+        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistributionWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenDistributionButton)
 
         self.layout.addLayout(self.statCalcButtonsLayout)
@@ -1069,9 +1091,7 @@ class StatViewer(QWidget):
         self.dataStatsLabel = QLabel('Basics:')
         self.statDisplayLayout.addWidget(self.dataStatsLabel)
 
-        self.tokenDistLabel = QLabel(f'Token distribution:\n'
-                                     f'Number of tokens: {self.tokenCount}\n'
-                                     f'Number of unique tokens: {self.uniqueTokenCount}')
+        self.tokenDistLabel = QLabel(f'Tokens:\n')
         self.statDisplayLayout.addWidget(self.tokenDistLabel)
 
         self.layout.addLayout(self.statDisplayLayout)
@@ -1085,7 +1105,6 @@ class StatViewer(QWidget):
         self.layout.addLayout(self.statExportButtonsLayout)
 
     def updateStatsData(self, data):
-        # print(f'got data: {data[0]}')
         setattr(self, data[0], data[1])
 
     def getStatsWithBar(self):
@@ -1129,7 +1148,7 @@ class StatViewer(QWidget):
         self.statsWorker.taskProgress.connect(self.setBarValue)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
-        self.statsWorker.taskFinished.connect(lambda: print(self.uniqueWordCount))
+        # self.statsWorker.taskFinished.connect(lambda: print(self.uniqueWordCount))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
@@ -1137,53 +1156,91 @@ class StatViewer(QWidget):
         # start the worker:
         self.statsThread.start()
 
-    def getLineLengths(self):
-        for line in self.curLines:
-            self.curLineLengths.append(len(line))
+    def getLineLengthsWithBar(self):
+        """Calculate line lengths using separate thread to allow progress bar updates"""
+        # create separate thread with appropriate worker:
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('getLineLengths')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
+        self.statsWorker.taskProgress.connect(self.setBarValue)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(self.resetBar)
+        self.statsWorker.taskFinished.connect(lambda: print(self.lineLengths))
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the worker:
+        self.statsThread.start()
 
-        # print(self.curLineLengths)
+    def getPOSWithBar(self):
+        """Tags POS and counts verbs in a separate thread to allow progress bar use"""
+        # create separate thread with appropriate worker:
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('getPOS')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the busy indicator and run worker:
+        self.startBusyBar()
+        self.statsThread.start()
 
-    def getPOS(self):
-        # TODO: move to worker
-        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
-        # print(self.taggedPOS)
-        self.verbCount = 0
-        for word, pos in self.taggedPOS:
-            if 'VB' in pos:
-                self.verbCount += 1
-        print(f"Number of verbs: {self.verbCount}")
+    def tokenizeDataWithBar(self):
+        """Tokenizes text in a separate thread to allow progress bar use"""
+        # create separate thread with appropriate worker:
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('tokenizeData')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        self.statsWorker.taskFinished.connect(lambda: self.tokenizeButton.setEnabled(False))
+        self.statsWorker.taskFinished.connect(lambda: self.tokenDistributionButton.setEnabled(True))
+        self.statsWorker.taskFinished.connect(lambda: self.tokenDistLabel.setText(f'Tokens:\n'
+                                                                                  f'Number of tokens: {self.tokenCount}\n'))
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the busy indicator and run worker:
+        self.startBusyBar()
+        self.statsThread.start()
 
-    def tokenizeData(self):
-        # TODO: move to worker
-        self.tokens = encoder.encode(findMainWindow().curData)
-        self.tokenCount = len(self.tokens)
-        # disable button:
-        self.tokenizeButton.setEnabled(False)
-        # enable token distribution button:
-        self.tokenDistributionButton.setEnabled(True)
-        # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+    def calculateTokenDistributionWithBar(self):
+        """Calculates token distribution in a separate thread to allow progress bar use"""
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('calculateTokenDistribution')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
+        self.statsWorker.taskProgress.connect(self.setBarValue)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(self.resetBar)
+        # self.statsWorker.taskFinished.connect(lambda: print(self.tokenDistribution))
+        self.statsWorker.taskFinished.connect(self.showTopTokens)
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the worker:
+        self.statsThread.start()
 
-    def calculateTokenDistribution(self):
-        """recursively iterate through data and count token occurrences"""
-        # TODO: move to worker
-        for token in self.tokens:
-            if token not in self.uniqueTokens:
-                self.uniqueTokens.append(token)
-            if token not in self.tokenDistribution.keys():
-                self.tokenDistribution[token] = 1
-            elif token in self.tokenDistribution.keys():
-                self.tokenDistribution[token] += 1
-
-        self.uniqueTokenCount = len(self.uniqueTokens)
-
-        self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
+    def showTopTokens(self):
         showTokenDistString = ''
         topTokenAmount = 10
         if findMainWindow().settings:
@@ -1194,28 +1251,23 @@ class StatViewer(QWidget):
                     curToken = key
             showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
 
-        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
-
         # put it all together and display:
-        self.dataStatsLabel.setText(f'Stats:\n'
-                                    f'Number of characters: {self.curCharCount}\n'
-                                    f'Number of words (approximately): {self.curWordCount}\n'
-                                    f'Number of lines: {self.curLineCount}\n'
-                                    f'Number of sentences (approximately): {len(self.sentences)}\n'
+        self.tokenDistLabel.setText(f'Tokens:\n'
                                     f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+                                    f'Number of unique tokens: {self.uniqueTokenCount}\n'
+                                    f'Most frequent tokens:\n{showTokenDistString}')
 
         # disable button to avoid crashes:
-        self.tokenDistributionButton.setEnabled(False)
+        # self.tokenDistributionButton.setEnabled(False)
         # self.exportStatsAndTknDistButton.setEnabled(True)
 
     def exportStatsAndTknDist(self):
         # exports data statistics
         statsData = {
             'counts': {
-                'characters': self.curCharCount,
-                'words': self.curWordCount,
-                'lines': self.curLineCount,
+                'characters': self.charCount,
+                'words': self.wordCount,
+                'lines': self.lineCount,
                 'sentences': len(self.sentences),
                 'verbs': self.verbCount,
                 'tokens': self.tokenCount,
@@ -1223,7 +1275,8 @@ class StatViewer(QWidget):
             }
         }
         if self.tokenDistribution:
-
+            statsData['tokenDistribution'] = self.tokenDistribution
+            """
             decodedTokenDist = []
             for tokenFrequency in self.tokenDistribution:
                 for key, value in fixEncodes.items():
@@ -1232,13 +1285,14 @@ class StatViewer(QWidget):
                 decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
 
             statsData['tokenDistribution'] = decodedTokenDist
+            """
         if self.wordDistribution:
             statsData['wordDistribution'] = self.wordDistribution
-        if self.curLineLengths:
-            statsData['lineLengths'] = self.curLineLengths
+        if self.lineLengths:
+            statsData['lineLengths'] = self.lineLengths
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}_stats.json',
                   'w', encoding='utf-8') as statsOutFile:
-            statsOutFile.write(json.dumps(statsData))
+            json.dump(statsData, statsOutFile, ensure_ascii=False)
 
 
 class StatsWorker(QObject):
@@ -1256,7 +1310,14 @@ class StatsWorker(QObject):
             self.getWordDistribution()
         elif self.curTask == 'getDataStats':
             self.getDataStats()
-        # print('finished task')
+        elif self.curTask == 'getLineLengths':
+            self.getLineLengths()
+        elif self.curTask == 'getPOS':
+            self.getPOS()
+        elif self.curTask == 'tokenizeData':
+            self.tokenizeData()
+        elif self.curTask == 'calculateTokenDistribution':
+            self.calculateTokenDistribution()
         self.taskFinished.emit()
 
     def returnData(self, dataName):
@@ -1268,6 +1329,7 @@ class StatsWorker(QObject):
         self.charCount = len(findMainWindow().curData)
         self.returnData('charCount')
         # words:
+        # TODO: make this do proper words; currently punctuation messes things up
         self.words = findMainWindow().curData.split()
         self.returnData('words')
         self.wordCount = len(self.words)
@@ -1275,7 +1337,7 @@ class StatsWorker(QObject):
         # lines:
         self.lines = findMainWindow().curData.split('\n')
         self.returnData('lines')
-        self.lineCount = len(self.curLines)
+        self.lineCount = len(self.lines)
         self.returnData('lineCount')
         # sentences:
         if findMainWindow().settings:
@@ -1315,6 +1377,55 @@ class StatsWorker(QObject):
 
         self.uniqueWordCount = len(self.uniqueWords)
         self.returnData('uniqueWordCount')
+
+    def getLineLengths(self):
+        self.lines = findMainWindow().children()[-1].lines
+        self.lineCount = findMainWindow().children()[-1].lineCount
+        self.taskProgressBarMax.emit(self.lineCount)
+        self.curLineID = 0
+        self.lineLengths = []
+        for line in self.lines:
+            self.lineLengths.append(len(line))
+            self.taskProgress.emit(self.curLineID)
+        self.returnData('lineLengths')
+
+    def getPOS(self):
+        self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
+        self.returnData('taggedPOS')
+        self.verbCount = 0
+        for word, pos in self.taggedPOS:
+            if 'VB' in pos:
+                self.verbCount += 1
+        self.returnData('verbCount')
+
+    def tokenizeData(self):
+        self.tokens = encoder.encode(findMainWindow().curData)
+        self.returnData('tokens')
+        self.tokenCount = len(self.tokens)
+        self.returnData('tokenCount')
+
+    def calculateTokenDistribution(self):
+        """recursively iterate through data and count token occurrences"""
+        self.tokens = findMainWindow().children()[-1].tokens
+        self.tokenCount = findMainWindow().children()[-1].tokenCount
+        self.taskProgressBarMax.emit(self.tokenCount)
+        self.uniqueTokens = []
+        self.tokenDistribution = {}
+        self.curTokenID = 0
+        for token in self.tokens:
+            if token not in self.uniqueTokens:
+                self.uniqueTokens.append(token)
+            if token not in self.tokenDistribution.keys():
+                self.tokenDistribution[token] = 1
+            elif token in self.tokenDistribution.keys():
+                self.tokenDistribution[token] += 1
+            self.curTokenID += 1
+            self.taskProgress.emit(self.curTokenID)
+        self.returnData('uniqueTokens')
+        self.uniqueTokenCount = len(self.uniqueTokens)
+        self.returnData('uniqueTokenCount')
+        self.tokenDistribution = sorted(self.tokenDistribution.items(), key=lambda x: x[1], reverse=True)
+        self.returnData('tokenDistribution')
 
 
 class ChunkStack(QWidget):
