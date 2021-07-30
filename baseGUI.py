@@ -1057,6 +1057,11 @@ class StatViewer(QWidget):
         self.lineLengthsButton.clicked.connect(self.getLineLengthsWithBar)
         self.statCalcButtonsLayout.addWidget(self.lineLengthsButton)
 
+        # POS button:
+        self.tagPOSButton = QPushButton('Tag POS')
+        self.tagPOSButton.clicked.connect(self.getPOSWithBar)
+        self.statCalcButtonsLayout.addWidget(self.tagPOSButton)
+
         self.layout.addLayout(self.statCalcButtonsLayout)
 
     def initStatsProgressbar(self):
@@ -1199,6 +1204,8 @@ class StatViewer(QWidget):
         self.statsWorker.taskReturn.connect(self.updateStatsData)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
+        self.statsWorker.taskFinished.connect(lambda: self.moreInfoLabel.setText(f'Other:\n'
+                                                                                 f'Number of verbs: {self.verbCount}'))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
@@ -1341,7 +1348,9 @@ class StatsWorker(QObject):
         self.returnData('charCount')
         # words:
         # TODO: make this do proper words; currently punctuation messes things up
-        self.words = findMainWindow().curData.split()
+        # self.words = findMainWindow().curData.split()
+        wordTokenizer = nltk.tokenize.RegexpTokenizer(r'\w+')
+        self.words = wordTokenizer.tokenize(findMainWindow().curData)
         self.returnData('words')
         self.wordCount = len(self.words)
         self.returnData('wordCount')
