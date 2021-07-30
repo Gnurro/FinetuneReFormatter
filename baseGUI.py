@@ -1051,6 +1051,12 @@ class StatViewer(QWidget):
         self.tokenDistributionButton.clicked.connect(self.calculateTokenDistributionWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenDistributionButton)
 
+        # line lengths button:
+        self.lineLengthsButton = QPushButton('Count line lengths')
+        self.lineLengthsButton.setEnabled(False)
+        self.lineLengthsButton.clicked.connect(self.getLineLengthsWithBar)
+        self.statCalcButtonsLayout.addWidget(self.lineLengthsButton)
+
         self.layout.addLayout(self.statCalcButtonsLayout)
 
     def initStatsProgressbar(self):
@@ -1091,8 +1097,11 @@ class StatViewer(QWidget):
         self.dataStatsLabel = QLabel('Basics:')
         self.statDisplayLayout.addWidget(self.dataStatsLabel)
 
-        self.tokenDistLabel = QLabel(f'Tokens:\n')
+        self.tokenDistLabel = QLabel(f'Tokens:')
         self.statDisplayLayout.addWidget(self.tokenDistLabel)
+
+        self.moreInfoLabel = QLabel(f'Other:')
+        self.statDisplayLayout.addWidget(self.moreInfoLabel)
 
         self.layout.addLayout(self.statDisplayLayout)
 
@@ -1119,6 +1128,7 @@ class StatViewer(QWidget):
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda: self.wordDistButton.setEnabled(True))
+        self.statsWorker.taskFinished.connect(lambda: self.lineLengthsButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda:
                                               self.dataStatsLabel.setText(f'Basics:\n'
@@ -1169,7 +1179,8 @@ class StatViewer(QWidget):
         self.statsWorker.taskProgress.connect(self.setBarValue)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
-        self.statsWorker.taskFinished.connect(lambda: print(self.lineLengths))
+        self.statsWorker.taskFinished.connect(lambda: self.moreInfoLabel.setText(f'Other:\n'
+                                                                                 f'Average line length: {sum(self.lineLengths)/self.lineCount}'))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
