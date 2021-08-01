@@ -2,3 +2,4 @@ regex
 PyQt5
 numpy
 nltk
+transformers

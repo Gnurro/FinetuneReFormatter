@@ -2,10 +2,9 @@
 Base module for the GUI
 
 TODO:
+    - change tokenizer to HF tokenizer
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
-    -
-    - Fix empty file InLine mode crash
 """
 
 import sys
@@ -16,9 +15,10 @@ import json
 import re
 import time
 
-from GPT2.encoder import get_encoder
-
+from _GPT2.encoder import get_encoder
 import tokensToUTF
+
+from transformers import GPT2Tokenizer
 
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
@@ -31,7 +31,9 @@ from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
 import nltk
 
 # more handy encoder reference:
-encoder = get_encoder()
+# encoder = get_encoder()
+
+encoder = GPT2Tokenizer.from_pretrained("gpt2")
 # get proper reverse token dictionary:
 fixEncodes = tokensToUTF.getFixEncodes()
 
@@ -1017,8 +1019,8 @@ class StatViewer(QWidget):
         # initialize layout:
         self.initStatsHeader()
         self.initStatsCalcButtons()
-        self.initStatsProgressbar()
         self.initStatsDisplay()
+        self.initStatsProgressbar()
         self.initStatsExportButtons()
 
     def initStatsHeader(self):
@@ -1031,9 +1033,15 @@ class StatViewer(QWidget):
         self.statCalcButtonsLayout = QHBoxLayout()
 
         # basic stats button:
-        self.baseStatsButton = QPushButton('Calculate basic statisics')
+        self.baseStatsButton = QPushButton('Calculate basic statistics')
         self.baseStatsButton.clicked.connect(self.getStatsWithBar)
         self.statCalcButtonsLayout.addWidget(self.baseStatsButton)
+
+        # line lengths button:
+        self.lineLengthsButton = QPushButton('Count line lengths')
+        self.lineLengthsButton.setEnabled(False)
+        self.lineLengthsButton.clicked.connect(self.getLineLengthsWithBar)
+        self.statCalcButtonsLayout.addWidget(self.lineLengthsButton)
 
         # word distribution button:
         self.wordDistButton = QPushButton('Calculate word distribution')
@@ -1053,16 +1061,10 @@ class StatViewer(QWidget):
         self.statCalcButtonsLayout.addWidget(self.tokenDistributionButton)
 
         # token bigram count button:
-        self.tokenBigramsButton = QPushButton('Calculate token bigram counts')
+        self.tokenBigramsButton = QPushButton('Get token bigrams')
         self.tokenBigramsButton.setEnabled(False)
         self.tokenBigramsButton.clicked.connect(self.getTokenBigramsWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenBigramsButton)
-
-        # line lengths button:
-        self.lineLengthsButton = QPushButton('Count line lengths')
-        self.lineLengthsButton.setEnabled(False)
-        self.lineLengthsButton.clicked.connect(self.getLineLengthsWithBar)
-        self.statCalcButtonsLayout.addWidget(self.lineLengthsButton)
 
         # POS button:
         self.tagPOSButton = QPushButton('Tag POS')
@@ -1273,9 +1275,12 @@ class StatViewer(QWidget):
         if findMainWindow().settings:
             topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
         for tokenFrequency in self.tokenDistribution[:topTokenAmount]:
+            """
             for key, value in fixEncodes.items():
                 if value == tokenFrequency[0]:
                     curToken = key
+            """
+            curToken = encoder.decode(tokenFrequency[0])
             showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
 
         # put it all together and display:
@@ -1300,9 +1305,9 @@ class StatViewer(QWidget):
         self.statsWorker.taskProgress.connect(self.setBarValue)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
-        self.statsWorker.taskFinished.connect(lambda: self.showTopTokenBigrams())
-        self.statsWorker.taskFinished.connect(lambda: self.exportStatsAndTknDist())
+        # self.statsWorker.taskFinished.connect(lambda: self.exportStatsAndTknDist())
         # self.statsWorker.taskFinished.connect(lambda: print(self.tokenBigramCounts))
+        self.statsWorker.taskFinished.connect(lambda: self.showTopTokenBigrams())
         # self.statsWorker.taskFinished.connect(self.showTopTokens)
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
@@ -1312,16 +1317,37 @@ class StatViewer(QWidget):
         self.statsThread.start()
 
     def showTopTokenBigrams(self):
-        showTokenBigramsString = ''
         topTokenBigramAmount = 10
+        topTokenBigrams = []
+        topTokenBigramCounts = []
+        for firstToken in self.tokenBigramCounts.keys():
+            # print(firstToken, len(self.tokenBigramCounts[firstToken]))
+            for secondToken in self.tokenBigramCounts[firstToken].keys():
+                # print(firstToken, secondToken, self.tokenBigramCounts[firstToken][secondToken])
+                if 1 <= len(topTokenBigramCounts) < topTokenBigramAmount:
+                    if self.tokenBigramCounts[firstToken][secondToken] > topTokenBigramCounts[-1]:
+                        topTokenBigrams.append([firstToken, secondToken, self.tokenBigramCounts[firstToken][secondToken]])
+                        topTokenBigramCounts.append(self.tokenBigramCounts[firstToken][secondToken])
+                        topTokenBigramCounts.sort(reverse=True)
+                elif len(topTokenBigramCounts) < topTokenBigramAmount:
+                    topTokenBigramCounts.append(self.tokenBigramCounts[firstToken][secondToken])
+                    topTokenBigrams.append([firstToken, secondToken, self.tokenBigramCounts[firstToken][secondToken]])
+        # print(topTokenBigramCounts, len(topTokenBigramCounts))
+        topTokenBigrams = sorted(topTokenBigrams, key=lambda x: x[2], reverse=True)
+        # print(topTokenBigrams, len(topTokenBigrams))
+
+        showTokenBigramsString = ''
         # if findMainWindow().settings:
             # topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
-        for tokenBigramFrequency in self.tokenBigramCounts[:topTokenBigramAmount]:
+        for tokenBigramFrequency in topTokenBigrams:
             curTokenBigram = ''
             for tokenID in tokenBigramFrequency[:2]:
+                """
                 for key, value in fixEncodes.items():
                     if value == tokenID:
                         curToken = key
+                """
+                curToken = encoder.decode(tokenID)
                 curTokenBigram += curToken
             showTokenBigramsString += f'"{curTokenBigram}" {tokenBigramFrequency[2]}\n'
 
@@ -1345,16 +1371,6 @@ class StatViewer(QWidget):
         }
         if self.tokenDistribution:
             statsData['tokenDistribution'] = self.tokenDistribution
-            """
-            decodedTokenDist = []
-            for tokenFrequency in self.tokenDistribution:
-                for key, value in fixEncodes.items():
-                    if value == tokenFrequency[0]:
-                        curDecodeToken = key
-                decodedTokenDist.append((curDecodeToken, tokenFrequency[1]))
-
-            statsData['tokenDistribution'] = decodedTokenDist
-            """
         if self.wordDistribution:
             statsData['wordDistribution'] = self.wordDistribution
         if self.lineLengths:
@@ -1506,26 +1522,17 @@ class StatsWorker(QObject):
         self.tokens = findMainWindow().children()[-1].tokens
         self.tokenCount = findMainWindow().children()[-1].tokenCount
         self.taskProgressBarMax.emit(self.tokenCount)
-        self.curTokenIndex = 1
-        self.tokenBigrams = []
-        for tokenIndex in range(self.tokenCount-1):
-            self.tokenBigrams.append((self.tokens[tokenIndex], self.tokens[tokenIndex + 1]))
-            self.curTokenIndex += 1
-            self.taskProgress.emit(self.curTokenIndex)
-        print('got token bigrams')
-        self.uniqueTokenBigrams = list({*self.tokenBigrams})
-        print('got unique token bigrams')
-        self.taskProgressBarMax.emit(len(self.uniqueTokenBigrams))
         self.curTokenIndex = 0
-        self.tokenBigramCounts = []
-        for tokenBigram in self.uniqueTokenBigrams:
-            self.tokenBigramCounts.append([tokenBigram[0], tokenBigram[1], self.tokenBigrams.count(tokenBigram)])
-            print(tokenBigram)
+        self.tokenBigramCounts = {}
+        for tokenIndex in range(self.tokenCount - 1):
+            if self.tokens[tokenIndex] not in self.tokenBigramCounts.keys():
+                self.tokenBigramCounts[self.tokens[tokenIndex]] = {}
+            if self.tokens[tokenIndex + 1] not in self.tokenBigramCounts[self.tokens[tokenIndex]].keys():
+                self.tokenBigramCounts[self.tokens[tokenIndex]][self.tokens[tokenIndex + 1]] = 1
+            else:
+                self.tokenBigramCounts[self.tokens[tokenIndex]][self.tokens[tokenIndex + 1]] += 1
             self.curTokenIndex += 1
             self.taskProgress.emit(self.curTokenIndex)
-        print('got token bigram counts')
-        self.tokenBigramCounts = sorted(self.tokenBigramCounts, key=lambda x: x[2], reverse=True)
-        print('sorted token bigram counts')
         self.returnData('tokenBigramCounts')
 
 
