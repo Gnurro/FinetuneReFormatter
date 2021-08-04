@@ -937,12 +937,9 @@ class InitialPrep(QWidget):
             findMainWindow().toggleFileUnsaved()
 
     def badDinkusFind(self):
-        # print('catching dem dinkusses')
         self.badDinkusExp = r'\n[^a-zA-Z0-9_\n]+\n'
-        # print('set regex')
         self.foundDinkusses = re.findall(self.badDinkusExp, findMainWindow().curData)
         self.foundDinkusses = list(filter(lambda a: a != '\n***\n', self.foundDinkusses))
-        # print('done catching')
         self.badDinkusLabel.setText(f'Found bad breakers:{"".join(self.foundDinkusses)}')
 
     def badDinkusReplace(self):
