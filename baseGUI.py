@@ -406,6 +406,10 @@ class SourceInspector(QWidget):
     def countBadLines(self):
         """
         count 'bad lines'/newlines that might be detrimental for finetuning
+
+        TODO:
+            - untangle this into proper methods
+            - add 'multiple caps at line start' checker
         """
         # make sure that counter/list are empty to prevent duplicates:
         self.badLineList = []
