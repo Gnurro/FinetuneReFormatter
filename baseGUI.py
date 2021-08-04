@@ -2,7 +2,6 @@
 Base module for the GUI
 
 TODO:
-    - change tokenizer to HF tokenizer
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
 """
@@ -55,14 +54,9 @@ class MainWindow(QMainWindow):
             - centralWidget
         - save as
         - over-all hotkeys/shortcuts
-            - switching modes
         - CLI/direct file loading?
             - sys.args
             - flags to instantly apply common fixes?
-        - add toolbar?
-            - save
-            - shortcuts by mode?
-            - buttons to switch modes?
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -671,9 +665,6 @@ class InitialPrep(QWidget):
         - re-chunk adventure logs
             - detect adventure logs first?
             - proper advlog check?
-        - more chunkfile creation options
-            - low/high token thresholds
-            - additional metadata?
         - file saving dialogs?
     """
     def __init__(self):
@@ -950,6 +941,7 @@ class InitialPrep(QWidget):
         self.badDinkusExp = r'\n[^a-zA-Z0-9_\n]+\n'
         # print('set regex')
         self.foundDinkusses = re.findall(self.badDinkusExp, findMainWindow().curData)
+        self.foundDinkusses = list(filter(lambda a: a != '\n***\n', self.foundDinkusses))
         # print('done catching')
         self.badDinkusLabel.setText(f'Found bad breakers:{"".join(self.foundDinkusses)}')
 
@@ -981,7 +973,6 @@ class InitialPrep(QWidget):
 
 
 class StatViewer(QWidget):
-    # TODO: properly integrate token bigram counter
     # TODO: count lines with quotes
     def __init__(self):
         super(StatViewer, self).__init__()
@@ -1340,15 +1331,18 @@ class StatViewer(QWidget):
         # if findMainWindow().settings:
             # topTokenAmount = findMainWindow().settings['InitialPrep']['topTokenAmount']
         for tokenBigramFrequency in topTokenBigrams:
-            curTokenBigram = ''
-            for tokenID in tokenBigramFrequency[:2]:
-                """
+            # curTokenBigram = ''
+            curTokenBigram = encoder.decode(tokenBigramFrequency[:2])
+            """
+            # for tokenID in tokenBigramFrequency[:2]:
+                
                 for key, value in fixEncodes.items():
                     if value == tokenID:
                         curToken = key
-                """
-                curToken = encoder.decode(tokenID)
-                curTokenBigram += curToken
+                
+                # curToken = encoder.decode(tokenID)
+                # curTokenBigram += curToken
+            """
             showTokenBigramsString += f'"{curTokenBigram}" {tokenBigramFrequency[2]}\n'
 
         # put it all together and display:
@@ -1418,8 +1412,6 @@ class StatsWorker(QObject):
         self.charCount = len(findMainWindow().curData)
         self.returnData('charCount')
         # words:
-        # TODO: make this do proper words; currently punctuation messes things up
-        # self.words = findMainWindow().curData.split()
         wordTokenizer = nltk.tokenize.RegexpTokenizer(r'\w+')
         self.words = wordTokenizer.tokenize(findMainWindow().curData)
         self.returnData('words')
@@ -1738,7 +1730,6 @@ class ChunkTextEdit(QWidget):
         # self.layout.addWidget(self.advancedMenu, 2, 1, alignment=Qt.AlignRight)
         self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignTop)
 
-
     def textChange(self):
         """
         track text changes, instantly calculate token count and update working data
@@ -1843,8 +1834,6 @@ class ChunkCombiner(QWidget):
 
     TODO:
         - add proper chunk type toolset
-            - continuation types!
-                - set up basic set of continuation types
             - move type defs here fully
                 - then turn ChunkStack type tag edit into dropdown
         - export file dialog?
@@ -1974,10 +1963,6 @@ class TagTypeStack(QWidget):
 class TagTypeHolder(QWidget):
     """
     holds single chunk type handling
-
-    TODO:
-        - change (not saved) note to (not defined)
-        - type notes (for continuation type tagging)
     """
     def __init__(self, tagType):
         super(TagTypeHolder, self).__init__()
@@ -2014,7 +1999,7 @@ class TagTypeHolder(QWidget):
             if findMainWindow().curData['projectData']['tagTypeData'][tagType][3]:
                 self.tagTypeSuffix.setText(findMainWindow().curData['projectData']['tagTypeData'][tagType][3])
         else:
-            self.tagTypeSaveWarnLabel.setText('<b>(not saved)</b>')
+            self.tagTypeSaveWarnLabel.setText('<b>(not defined)</b>')
 
         self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
         self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 1)
