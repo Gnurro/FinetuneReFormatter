@@ -2,7 +2,7 @@
 Base module for the GUI
 
 TODO:
-    - load tokenizer on demand
+    - CLEANUP!
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
     -
