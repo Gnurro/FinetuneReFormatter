@@ -5,6 +5,10 @@ TODO:
     - load tokenizer on demand
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
+    -
+    - multifile/directory mode?
+        - open list of files
+        - 'save and open next file' option/shortcut
 """
 
 import sys
@@ -33,7 +37,7 @@ import nltk
 # more handy encoder reference:
 # encoder = get_encoder()
 
-encoder = GPT2Tokenizer.from_pretrained("gpt2")
+# encoder = GPT2Tokenizer.from_pretrained("gpt2")
 # get proper reverse token dictionary:
 fixEncodes = tokensToUTF.getFixEncodes()
 
@@ -54,7 +58,6 @@ class MainWindow(QMainWindow):
         - settings
             - centralWidget
         - save as
-        - over-all hotkeys/shortcuts
         - CLI/direct file loading?
             - sys.args
             - flags to instantly apply common fixes?
@@ -251,7 +254,7 @@ class MainWindow(QMainWindow):
 
                 if allowedMode == 'ChunkCombiner':
                     self.menuMode.addAction(allowedMode, lambda: self.setMode('ChunkCombiner'))
-
+    """
     def _createToolbar(self):
         tools = QToolBar()
         self.addToolBar(tools)
@@ -261,6 +264,7 @@ class MainWindow(QMainWindow):
         status = QStatusBar()
         status.showMessage('Nothing to tell yet...')
         self.setStatusBar(status)
+    """
 
 
 class IntroScreen(QWidget):
@@ -302,7 +306,6 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
-        - remove token counter
         - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
@@ -372,9 +375,9 @@ class SourceInspector(QWidget):
         # self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
 
         # misc warnings:
-        self.warningsLabel = QLabel('Warnings:')
+        # self.warningsLabel = QLabel('Warnings:')
         # self.warningsLabel.setText('Warnings:')
-        self.checkWarnables()
+        # self.checkWarnables()
 
         self.layout.addWidget(self.newlinesLabel, 0, 0)
         self.layout.addWidget(self.newlineModeComboBox, 0, 1)
@@ -811,6 +814,22 @@ class InitialPrep(QWidget):
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
+
+        # sentences:
+        if findMainWindow().settings:
+            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
+        else:
+            sentenceEnders = ['.', '!', '?', ':']
+        if findMainWindow().settings:
+            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+        else:
+            self.sentenceEndPlaceholder = '%%%%%'
+        rawSentencesMarked = findMainWindow().curData
+        for sentenceEnder in sentenceEnders:
+            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}",
+                                                            f"{sentenceEnder}{self.sentenceEndPlaceholder}")
+        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
+
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
             sentenceOutFile.write(json.dumps(self.sentences, ensure_ascii=False))
 
@@ -824,6 +843,27 @@ class InitialPrep(QWidget):
                 - allow more placeholders
                 - allow other spacing
         """
+
+        if not findMainWindow().tokenizerLoaded:
+            global encoder
+            encoder = GPT2Tokenizer.from_pretrained("gpt2")
+            findMainWindow().tokenizerLoaded = True
+
+        # sentences:
+        if findMainWindow().settings:
+            sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
+        else:
+            sentenceEnders = ['.', '!', '?', ':']
+        if findMainWindow().settings:
+            self.sentenceEndPlaceholder = findMainWindow().settings['InitialPrep']['sentenceEndPlaceholder']
+        else:
+            self.sentenceEndPlaceholder = '%%%%%'
+        rawSentencesMarked = findMainWindow().curData
+        for sentenceEnder in sentenceEnders:
+            rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}",
+                                                            f"{sentenceEnder}{self.sentenceEndPlaceholder}")
+        self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
+
         curTokenCount = 0  # current number of tokens in current chunk
         curChunk = ""  # chunk text
         chunkList = []  # list of properly sized chunks
@@ -1017,6 +1057,11 @@ class StatViewer(QWidget):
             nltk.download('punkt')
             nltk.download('averaged_perceptron_tagger')
             findMainWindow().nltkLoaded = True
+
+        if not findMainWindow().tokenizerLoaded:
+            global encoder
+            encoder = GPT2Tokenizer.from_pretrained("gpt2")
+            findMainWindow().tokenizerLoaded = True
         # initialize layout:
         self.initStatsHeader()
         self.initStatsCalcButtons()
