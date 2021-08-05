@@ -34,6 +34,13 @@ from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
 
 import nltk
 
+import argparse
+
+argParser = argparse.ArgumentParser()
+argParser.add_argument('--file', type=str, help='Specify file to open')
+argParser.add_argument('--mode', type=str, help='Specify mode to show specified file in')
+args = argParser.parse_args()
+
 # more handy encoder reference:
 # encoder = get_encoder()
 
@@ -107,8 +114,43 @@ class MainWindow(QMainWindow):
         self.persistentChunkStackStartIndex = 0
 
         # intro screen showing on start:
-        InitialIntroScreen = IntroScreen()
-        self.setCentralWidget(InitialIntroScreen)
+        # InitialIntroScreen = IntroScreen()
+        # self.setCentralWidget(InitialIntroScreen)
+
+        if not args.file:
+            InitialIntroScreen = IntroScreen()
+            self.setCentralWidget(InitialIntroScreen)
+        else:
+            self.curFilePath = args.file
+            self.curFileName = self.curFilePath.split('/')[-1]
+            self.curFileType = self.curFilePath.split('.')[-1]
+            if self.curFileType == 'txt':
+                try:
+                    self.curData = open(self.curFilePath, "r", encoding="UTF-8").read()
+                except:
+                    QMessageBox.about(self, 'Error',
+                                      f'The selected file ({self.curFileInfo[0]}) is not compatible! Make sure text files are UTF-8.')
+                else:
+                    print('Current file type is plaintext, allowing appropriate modes...')
+                    self.allowedModes = ['InitialPrep', 'SourceInspector', 'StatViewer']
+                    if args.mode:
+                        self.setMode(args.mode)
+                    else:
+                        self.setMode('SourceInspector')
+                    # self.setMode('StatViewer')
+                    self._createMenu()
+                    self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+            elif self.curFileType == 'json':
+                print('Current file type is JSON, allowing appropriate modes...')
+                # print(self.curData)
+                self.allowedModes = ['ChunkStack', 'ChunkCombiner']
+                self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
+                self.setMode('ChunkStack')
+                self._createMenu()
+                self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+
+
+
         # save file keyboard shortcut:
         self.fileSaveShortcut = QShortcut(QKeySequence('Ctrl+S'), self)
         self.fileSaveShortcut.activated.connect(self.saveCurFile)
