@@ -38,7 +38,7 @@ import argparse
 
 argParser = argparse.ArgumentParser()
 argParser.add_argument('--file', type=str, help='Specify file to open')
-argParser.add_argument('--mode', type=str, help='Specify mode to show specified file in')
+argParser.add_argument('--mode', type=str, help='Specify mode to show specified file in on start')
 args = argParser.parse_args()
 
 # more handy encoder reference:
