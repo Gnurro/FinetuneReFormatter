@@ -2,6 +2,7 @@
 Base module for the GUI
 
 TODO:
+    - load tokenizer on demand
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
 """
@@ -82,6 +83,9 @@ class MainWindow(QMainWindow):
 
         # only check for nltk modules once:
         self.nltkLoaded = False
+
+        # only load tokenizer once:
+        self.tokenizerLoaded = False
 
         # overall values used for file handling:
         self.curFileInfo = ''
@@ -298,6 +302,7 @@ class SourceInspector(QWidget):
     Checking for common source text issues, like excessive newlines, with an interactive text editor
 
     TODO:
+        - remove token counter
         - turn 'newline modes' into generic 'issue trackers'
     """
     def __init__(self):
@@ -310,7 +315,7 @@ class SourceInspector(QWidget):
         self.textField = QCodeEditor()
         self.textField.setPlainText(findMainWindow().curData)
         self.textField.textChanged.connect(self.textChange)
-
+        """
         # instant token count:
         self.tokensLabel = QLabel()
         # self.tokens = encoder.encode(self.textField.toPlainText())
@@ -328,7 +333,11 @@ class SourceInspector(QWidget):
         self.tokenCountButton.setText('Count tokens')
         self.tokenCountButton.setEnabled(True)
         self.tokenCountButton.clicked.connect(self.tokenButtonClick)
-
+        
+        self.layout.addWidget(self.tokensLabel, 0, 0)
+        self.layout.addWidget(self.tokenCountButton, 0, 1)
+        self.layout.addWidget(self.tokensCheckBox, 0, 2)
+        """
         # newlines checking:
         self.newlineMode = 'LineEnd'
         self.badLineCount = 0
@@ -367,21 +376,16 @@ class SourceInspector(QWidget):
         # self.warningsLabel.setText('Warnings:')
         self.checkWarnables()
 
-        # putting all the widgets into layout:
-        self.layout.addWidget(self.tokensLabel, 0, 0)
-        self.layout.addWidget(self.tokenCountButton, 0, 1)
-        self.layout.addWidget(self.tokensCheckBox, 0, 2)
+        self.layout.addWidget(self.newlinesLabel, 0, 0)
+        self.layout.addWidget(self.newlineModeComboBox, 0, 1)
+        self.layout.addWidget(self.issueBrowseLabel, 0, 2)
+        self.layout.addWidget(self.prevIssueButton, 0, 3)
+        self.layout.addWidget(self.nextIssueButton, 0, 4)
 
-        self.layout.addWidget(self.newlinesLabel, 0, 3)
-        self.layout.addWidget(self.newlineModeComboBox, 0, 4)
-        self.layout.addWidget(self.issueBrowseLabel, 0, 5)
-        self.layout.addWidget(self.prevIssueButton, 0, 6)
-        self.layout.addWidget(self.nextIssueButton, 0, 7)
-
-        self.layout.addWidget(self.textField, 1, 0, 1, 8)
+        self.layout.addWidget(self.textField, 1, 0, 1, 5)
 
         # self.layout.addWidget(self.warningsLabel, 2, 0)
-
+    '''
     def tokenCountToggle(self):
         """switch realtime encoding/token count on and off"""
         self.doCountTokens = self.tokensCheckBox.isChecked()
@@ -395,7 +399,7 @@ class SourceInspector(QWidget):
         self.tokens = encoder.encode(self.textField.toPlainText())
         self.tokenCount = len(self.tokens)
         self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-
+    '''
     def newLineModeChange(self):
         """newline checking mode selection and updating"""
         self.newlineMode = self.newlineModeComboBox.currentText()
@@ -523,21 +527,23 @@ class SourceInspector(QWidget):
 
     def textChange(self):
         """event method for realtime text checking"""
+        """
         # update token count if instant token encoding+counting is on:
         if self.doCountTokens:
             self.tokens = encoder.encode(self.textField.toPlainText())
             self.tokenCount = len(self.tokens)
             self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
+        """
         # update newline checks:
         self.newlineCount = self.textField.toPlainText().count('\n')
         self.textLines = self.textField.toPlainText().split('\n')
         self.countBadLines()
         # update warnings:
-        self.checkWarnables()
+        # self.checkWarnables()
         # update the cached text at toplevel:
         findMainWindow().curData = self.textField.toPlainText()
         findMainWindow().toggleFileUnsaved()
-
+    '''
     def checkWarnables(self):
         """
         checks for miscellaneous issues
@@ -545,6 +551,8 @@ class SourceInspector(QWidget):
         current warnings:
             - missing EOT
             - trailing newline at end
+
+        TODO: remove this?
         """
         warningStrings = []
         # check if text ends in EOT token:
@@ -558,6 +566,7 @@ class SourceInspector(QWidget):
             self.warningsLabel.setText('Warnings: ' + ' '.join(warningStrings))
         else:
             self.warningsLabel.setText('No warnings.')
+    '''
 
 
 class QLineNumberArea(QWidget):
