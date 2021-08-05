@@ -65,8 +65,7 @@ class MainWindow(QMainWindow):
         - settings
             - centralWidget
         - save as
-        - CLI/direct file loading?
-            - sys.args
+        - CLI/direct file loading
             - flags to instantly apply common fixes?
     """
     def __init__(self, parent=None):
