@@ -27,7 +27,7 @@ from transformers import GPT2Tokenizer
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
 from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy, QMessageBox, QShortcut
-from PyQt5.QtWidgets import QProgressBar
+from PyQt5.QtWidgets import QProgressBar, QFrame
 import PyQt5.QtCore as QtCore
 from PyQt5.QtCore import Qt, QSize, QRect, QThread, QObject
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
@@ -672,13 +672,13 @@ class InitialPrep(QWidget):
 
     TODO:
         - more quick utilities:
-            - PDF export issue fixes
+            - PDF export issue fixes?
                 - page numbers
                 - headers
             - wiki fixes from other prep scripts?
         - QuickFixes:
             -
-        - re-chunk adventure logs
+        - re-chunk adventure logs?
             - detect adventure logs first?
             - proper advlog check?
         - file saving dialogs?
@@ -814,7 +814,6 @@ class InitialPrep(QWidget):
 
     def exportSentenceList(self):
         """exports data split into sentences as JSON (array)"""
-
         # sentences:
         if findMainWindow().settings:
             sentenceEnders = findMainWindow().settings['InitialPrep']['sentenceEnders']
@@ -829,7 +828,7 @@ class InitialPrep(QWidget):
             rawSentencesMarked = rawSentencesMarked.replace(f"{sentenceEnder}",
                                                             f"{sentenceEnder}{self.sentenceEndPlaceholder}")
         self.sentences = rawSentencesMarked.split(f"{self.sentenceEndPlaceholder}")
-
+        # export:
         with open(f'{findMainWindow().curFilePath.replace(".txt", "")}{self.chopSentencesFileSuffix.text()}.json', 'w', encoding='utf-8') as sentenceOutFile:
             sentenceOutFile.write(json.dumps(self.sentences, ensure_ascii=False))
 
@@ -1023,7 +1022,10 @@ class InitialPrep(QWidget):
 
 
 class StatViewer(QWidget):
-    # TODO: count lines with quotes
+    """ Calculate various statistics
+    TODO:
+        - count lines with quotes
+    """
     def __init__(self):
         super(StatViewer, self).__init__()
 
@@ -1052,20 +1054,23 @@ class StatViewer(QWidget):
         self.uniqueWords = []
         self.uniqueWordCount = 0
         self.wordDistribution = {}
+        # special line counts:
+        self.quoteLineCount = 0
         # check for needed nltk modules:
         if not findMainWindow().nltkLoaded:
             nltk.download('punkt')
             nltk.download('averaged_perceptron_tagger')
             findMainWindow().nltkLoaded = True
-
-        if not findMainWindow().tokenizerLoaded:
-            global encoder
-            encoder = GPT2Tokenizer.from_pretrained("gpt2")
-            findMainWindow().tokenizerLoaded = True
         # initialize layout:
         self.initStatsHeader()
-        self.initStatsCalcButtons()
-        self.initStatsDisplay()
+        # self.initStatsCalcButtons()
+        # self.initStatsDisplay()
+        self.initBaseStatsLayout()
+        self.layout.addWidget(QHLine())
+        self.initTokenStatsLayout()
+        self.layout.addWidget(QHLine())
+        self.initOtherStatsLayout()
+        self.layout.addWidget(QHLine())
         self.initStatsProgressbar()
         self.initStatsExportButtons()
 
@@ -1077,7 +1082,7 @@ class StatViewer(QWidget):
 
     def initStatsCalcButtons(self):
         self.statCalcButtonsLayout = QHBoxLayout()
-
+        """
         # basic stats button:
         self.baseStatsButton = QPushButton('Calculate basic statistics')
         self.baseStatsButton.clicked.connect(self.getStatsWithBar)
@@ -1094,7 +1099,7 @@ class StatViewer(QWidget):
         self.wordDistButton.setEnabled(False)
         self.wordDistButton.clicked.connect(self.getWordDistWithBar)
         self.statCalcButtonsLayout.addWidget(self.wordDistButton)
-
+        
         # tokenize button:
         self.tokenizeButton = QPushButton('Tokenize data')
         self.tokenizeButton.clicked.connect(self.tokenizeDataWithBar)
@@ -1111,13 +1116,109 @@ class StatViewer(QWidget):
         self.tokenBigramsButton.setEnabled(False)
         self.tokenBigramsButton.clicked.connect(self.getTokenBigramsWithBar)
         self.statCalcButtonsLayout.addWidget(self.tokenBigramsButton)
-
+        
         # POS button:
         self.tagPOSButton = QPushButton('Tag POS')
         self.tagPOSButton.clicked.connect(self.getPOSWithBar)
         self.statCalcButtonsLayout.addWidget(self.tagPOSButton)
-
+        """
         self.layout.addLayout(self.statCalcButtonsLayout)
+
+    def initBaseStatsLayout(self):
+        self.baseStatsLayout = QVBoxLayout()
+        self.baseStatsButtonsLayout = QHBoxLayout()
+        self.baseStatsDisplayLayout = QHBoxLayout()
+
+        # basic stats button:
+        self.baseStatsButton = QPushButton('Calculate basic statistics')
+        self.baseStatsButton.clicked.connect(self.getStatsWithBar)
+        self.baseStatsButtonsLayout.addWidget(self.baseStatsButton)
+
+        # line lengths button:
+        self.lineLengthsButton = QPushButton('Count line lengths')
+        self.lineLengthsButton.setEnabled(False)
+        self.lineLengthsButton.clicked.connect(self.getLineLengthsWithBar)
+        self.baseStatsButtonsLayout.addWidget(self.lineLengthsButton)
+
+        # word distribution button:
+        self.wordDistButton = QPushButton('Calculate word distribution')
+        self.wordDistButton.setEnabled(False)
+        self.wordDistButton.clicked.connect(self.getWordDistWithBar)
+        self.baseStatsButtonsLayout.addWidget(self.wordDistButton)
+
+        # basics label:
+        self.dataStatsLabel = QLabel('Basics:')
+        self.baseStatsDisplayLayout.addWidget(self.dataStatsLabel)
+
+        # line lengths label:
+        self.lineLengthsLabel = QLabel()
+        self.baseStatsDisplayLayout.addWidget(self.lineLengthsLabel)
+
+        # word frequencies label:
+        self.wordFreqLabel = QLabel()
+        self.baseStatsDisplayLayout.addWidget(self.wordFreqLabel)
+
+        self.baseStatsLayout.addLayout(self.baseStatsDisplayLayout)
+        self.baseStatsLayout.addLayout(self.baseStatsButtonsLayout)
+        self.layout.addLayout(self.baseStatsLayout)
+
+    def initTokenStatsLayout(self):
+        self.tokenStatsLayout = QVBoxLayout()
+        self.tokenStatsButtonsLayout = QHBoxLayout()
+        self.tokenStatsDisplayLayout = QHBoxLayout()
+
+        # tokenize button:
+        self.tokenizeButton = QPushButton('Tokenize data')
+        self.tokenizeButton.clicked.connect(self.tokenizeDataWithBar)
+        self.tokenStatsButtonsLayout.addWidget(self.tokenizeButton)
+
+        # token distribution button:
+        self.tokenDistributionButton = QPushButton('Calculate token distribution')
+        self.tokenDistributionButton.setEnabled(False)
+        self.tokenDistributionButton.clicked.connect(self.calculateTokenDistributionWithBar)
+        self.tokenStatsButtonsLayout.addWidget(self.tokenDistributionButton)
+
+        # token bigram count button:
+        self.tokenBigramsButton = QPushButton('Get token bigrams')
+        self.tokenBigramsButton.setEnabled(False)
+        self.tokenBigramsButton.clicked.connect(self.getTokenBigramsWithBar)
+        self.tokenStatsButtonsLayout.addWidget(self.tokenBigramsButton)
+
+        self.tokenCountLabel = QLabel(f'Tokens:')
+        self.tokenStatsDisplayLayout.addWidget(self.tokenCountLabel)
+
+        self.tokenDistLabel = QLabel()
+        self.tokenStatsDisplayLayout.addWidget(self.tokenDistLabel)
+
+        self.tokenBigramsLabel = QLabel()
+        self.tokenStatsDisplayLayout.addWidget(self.tokenBigramsLabel)
+
+        self.tokenStatsLayout.addLayout(self.tokenStatsDisplayLayout)
+        self.tokenStatsLayout.addLayout(self.tokenStatsButtonsLayout)
+        self.layout.addLayout(self.tokenStatsLayout)
+
+    def initOtherStatsLayout(self):
+        self.otherStatsLayout = QVBoxLayout()
+        self.otherStatsButtonsLayout = QHBoxLayout()
+        self.otherStatsDisplayLayout = QHBoxLayout()
+
+        # POS button:
+        self.tagPOSButton = QPushButton('Tag POS and count verbs')
+        self.tagPOSButton.clicked.connect(self.getPOSWithBar)
+        self.otherStatsButtonsLayout.addWidget(self.tagPOSButton)
+
+        # quote lines button:
+        self.quoteLineCountButton = QPushButton('Count lines beginning with quotes')
+        self.quoteLineCountButton.setEnabled(False)
+        self.quoteLineCountButton.clicked.connect(self.getQuoteLineCountWithBar)
+        self.otherStatsButtonsLayout.addWidget(self.quoteLineCountButton)
+
+        self.moreInfoLabel = QLabel(f'Other:')
+        self.otherStatsDisplayLayout.addWidget(self.moreInfoLabel)
+
+        self.otherStatsLayout.addLayout(self.otherStatsDisplayLayout)
+        self.otherStatsLayout.addLayout(self.otherStatsButtonsLayout)
+        self.layout.addLayout(self.otherStatsLayout)
 
     def initStatsProgressbar(self):
         self.statProgressLayout = QHBoxLayout()
@@ -1153,16 +1254,16 @@ class StatViewer(QWidget):
 
     def initStatsDisplay(self):
         self.statDisplayLayout = QHBoxLayout()
-
+        """
         self.dataStatsLabel = QLabel('Basics:')
         self.statDisplayLayout.addWidget(self.dataStatsLabel)
-
+        
         self.tokenDistLabel = QLabel(f'Tokens:')
         self.statDisplayLayout.addWidget(self.tokenDistLabel)
-
+        
         self.moreInfoLabel = QLabel(f'Other:')
         self.statDisplayLayout.addWidget(self.moreInfoLabel)
-
+        """
         self.layout.addLayout(self.statDisplayLayout)
 
     def initStatsExportButtons(self):
@@ -1189,6 +1290,7 @@ class StatViewer(QWidget):
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda: self.wordDistButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(lambda: self.lineLengthsButton.setEnabled(True))
+        self.statsWorker.taskFinished.connect(lambda: self.quoteLineCountButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(self.stopBusyBar)
         self.statsWorker.taskFinished.connect(lambda:
                                               self.dataStatsLabel.setText(f'Basics:\n'
@@ -1218,13 +1320,28 @@ class StatViewer(QWidget):
         self.statsWorker.taskProgress.connect(self.setBarValue)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
-        # self.statsWorker.taskFinished.connect(lambda: print(self.uniqueWordCount))
+        # self.statsWorker.taskFinished.connect(lambda: print(self.wordDistribution))
+        self.statsWorker.taskFinished.connect(self.showTopWords)
+        # self.statsWorker.taskFinished.connect(lambda: self.wordFreqLabel.setText(f'Word counts:\n'
+                                                                                 # f'Unique words: {self.uniqueWordCount}'))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
         self.statsThread.finished.connect(self.statsThread.deleteLater)
         # start the worker:
         self.statsThread.start()
+
+    def showTopWords(self):
+        showTopWordsString = ''
+        topWordAmount = 10
+
+        for wordFrequency in self.wordDistribution[:topWordAmount]:
+            showTopWordsString += f'{wordFrequency[0]} {wordFrequency[1]}\n'
+
+        self.wordFreqLabel.setText(f'Word counts:\n'
+                                   f'Unique words: {self.uniqueWordCount}\n'
+                                   f'Most frequent words:\n'
+                                   f'{showTopWordsString}')
 
     def getLineLengthsWithBar(self):
         """Calculate line lengths using separate thread to allow progress bar updates"""
@@ -1239,8 +1356,40 @@ class StatViewer(QWidget):
         self.statsWorker.taskProgress.connect(self.setBarValue)
         # connect the worker to apply updates when finished:
         self.statsWorker.taskFinished.connect(self.resetBar)
+        self.statsWorker.taskFinished.connect(lambda: self.lineLengthsLabel.setText(f'Line length:\n'
+                                                                                    f'Average: {sum(self.lineLengths)/self.lineCount}\n'
+                                                                                    f'Maximum: {max(self.lineLengths)}\n'
+                                                                                    f'Minimum: {min(self.lineLengths)}'))
+        """
         self.statsWorker.taskFinished.connect(lambda: self.moreInfoLabel.setText(f'Other:\n'
                                                                                  f'Average line length: {sum(self.lineLengths)/self.lineCount}'))
+        """
+        # clean up thread when finished:
+        self.statsWorker.taskFinished.connect(self.statsThread.quit)
+        self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
+        self.statsThread.finished.connect(self.statsThread.deleteLater)
+        # start the worker:
+        self.statsThread.start()
+
+    def getQuoteLineCountWithBar(self):
+        """Count lines beginning with quotes using separate thread to allow progress bar updates"""
+        # create separate thread with appropriate worker:
+        self.statsThread = QThread()
+        self.statsWorker = StatsWorker('getQuoteLineCount')
+        self.statsWorker.moveToThread(self.statsThread)
+        self.statsThread.started.connect(self.statsWorker.run)
+        # connect the worker to get data while active:
+        self.statsWorker.taskReturn.connect(self.updateStatsData)
+        self.statsWorker.taskProgressBarMax.connect(self.setBarMax)
+        self.statsWorker.taskProgress.connect(self.setBarValue)
+        # connect the worker to apply updates when finished:
+        self.statsWorker.taskFinished.connect(lambda: self.moreInfoLabel.setText(f'Other:\n'
+                                                                                 f'Lines beginning with quotes: {self.quoteLineCount}'))
+        """
+        self.statsWorker.taskFinished.connect(lambda: self.moreInfoLabel.setText(f'Other:\n'
+                                                                                 f'Average line length: {sum(self.lineLengths)/self.lineCount}'))
+        """
+        self.statsWorker.taskFinished.connect(self.resetBar)
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
@@ -1284,8 +1433,8 @@ class StatViewer(QWidget):
         self.statsWorker.taskFinished.connect(lambda: self.tokenizeButton.setEnabled(False))
         self.statsWorker.taskFinished.connect(lambda: self.tokenDistributionButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(lambda: self.tokenBigramsButton.setEnabled(True))
-        self.statsWorker.taskFinished.connect(lambda: self.tokenDistLabel.setText(f'Tokens:\n'
-                                                                                  f'Number of tokens: {self.tokenCount}\n'))
+        self.statsWorker.taskFinished.connect(lambda: self.tokenCountLabel.setText(f'Tokens:\n'
+                                                                                  f'Number of tokens: {self.tokenCount}'))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
@@ -1330,10 +1479,11 @@ class StatViewer(QWidget):
             showTokenDistString += f'"{curToken}" {tokenFrequency[1]}\n'
 
         # put it all together and display:
-        self.tokenDistLabel.setText(f'Tokens:\n'
+        self.tokenCountLabel.setText(f'Tokens:\n'
                                     f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}\n'
-                                    f'Most frequent tokens:\n{showTokenDistString}')
+                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+
+        self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
 
         # disable button to avoid crashes:
         # self.tokenDistributionButton.setEnabled(False)
@@ -1401,9 +1551,7 @@ class StatViewer(QWidget):
             showTokenBigramsString += f'"{curTokenBigram}" {tokenBigramFrequency[2]}\n'
 
         # put it all together and display:
-        self.tokenDistLabel.setText(f'Tokens:\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Most frequent token bigrams:\n{showTokenBigramsString}')
+        self.tokenBigramsLabel.setText(f'Most frequent token bigrams:\n{showTokenBigramsString}')
 
     def exportStatsAndTknDist(self):
         # exports data statistics
@@ -1456,6 +1604,8 @@ class StatsWorker(QObject):
             self.calculateTokenDistribution()
         elif self.curTask == 'getTokenBigrams':
             self.getTokenBigrams()
+        elif self.curTask == 'getQuoteLineCount':
+            self.getQuoteLineCount()
         self.taskFinished.emit()
 
     def returnData(self, dataName):
@@ -1527,6 +1677,18 @@ class StatsWorker(QObject):
             self.taskProgress.emit(self.curLineID)
         self.returnData('lineLengths')
 
+    def getQuoteLineCount(self):
+        self.lines = findMainWindow().children()[-1].lines
+        self.lineCount = findMainWindow().children()[-1].lineCount
+        self.taskProgressBarMax.emit(self.lineCount)
+        self.curLineID = 0
+        self.quoteLineCount = 0
+        for line in self.lines:
+            if line[0] in ['"', "'"]:
+                self.quoteLineCount += 1
+            self.taskProgress.emit(self.curLineID)
+        self.returnData('quoteLineCount')
+
     def getPOS(self):
         self.taggedPOS = nltk.pos_tag(nltk.word_tokenize(findMainWindow().curData))
         self.returnData('taggedPOS')
@@ -1537,6 +1699,12 @@ class StatsWorker(QObject):
         self.returnData('verbCount')
 
     def tokenizeData(self):
+        # load tokenizer if it's not loaded yet:
+        if not findMainWindow().tokenizerLoaded:
+            global encoder
+            encoder = GPT2Tokenizer.from_pretrained("gpt2")
+            findMainWindow().tokenizerLoaded = True
+
         self.tokens = encoder.encode(findMainWindow().curData)
         self.returnData('tokens')
         self.tokenCount = len(self.tokens)
@@ -2075,6 +2243,13 @@ class TagTypeHolder(QWidget):
 
     def dataChanged(self):
         findMainWindow().toggleFileUnsaved()
+
+
+class QHLine(QFrame):
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
 
 
 if __name__ == '__main__':
