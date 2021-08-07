@@ -1475,7 +1475,8 @@ class StatViewer(QWidget):
         self.statsWorker.taskFinished.connect(lambda: self.tokenDistributionButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(lambda: self.tokenBigramsButton.setEnabled(True))
         self.statsWorker.taskFinished.connect(lambda: self.tokenCountLabel.setText(f'Tokens:\n'
-                                                                                  f'Number of tokens: {self.tokenCount}'))
+                                                                                   f'Number of tokens: {self.tokenCount}\n'
+                                                                                   f'Approximate module steps: {self.tokenCount/255}'))
         # clean up thread when finished:
         self.statsWorker.taskFinished.connect(self.statsThread.quit)
         self.statsWorker.taskFinished.connect(self.statsWorker.deleteLater)
@@ -1521,8 +1522,9 @@ class StatViewer(QWidget):
 
         # put it all together and display:
         self.tokenCountLabel.setText(f'Tokens:\n'
-                                    f'Number of tokens: {self.tokenCount}\n'
-                                    f'Number of unique tokens: {self.uniqueTokenCount}')
+                                     f'Number of tokens: {self.tokenCount}\n'
+                                     f'Number of unique tokens: {self.uniqueTokenCount}\n'
+                                     f'Approximate module steps: {self.tokenCount/255}')
 
         self.tokenDistLabel.setText(f'Most frequent tokens:\n{showTokenDistString}')
 
