@@ -501,7 +501,6 @@ class SourceInspector(QWidget):
 
     def getLineStringIndexList(self):
         """returns list of text string indexes of the start of lines"""
-        # print('trying to get line text indexes')
         return [match.start() for match in re.finditer("\n", self.textField.toPlainText())]
 
     def getTextCursor(self):
@@ -520,46 +519,13 @@ class SourceInspector(QWidget):
 
     def textChange(self):
         """event method for realtime text checking"""
-        """
-        # update token count if instant token encoding+counting is on:
-        if self.doCountTokens:
-            self.tokens = encoder.encode(self.textField.toPlainText())
-            self.tokenCount = len(self.tokens)
-            self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        """
         # update newline checks:
         self.newlineCount = self.textField.toPlainText().count('\n')
         self.textLines = self.textField.toPlainText().split('\n')
         self.countBadLines()
-        # update warnings:
-        # self.checkWarnables()
         # update the cached text at toplevel:
         findMainWindow().curData = self.textField.toPlainText()
         findMainWindow().toggleFileUnsaved()
-    '''
-    def checkWarnables(self):
-        """
-        checks for miscellaneous issues
-
-        current warnings:
-            - missing EOT
-            - trailing newline at end
-
-        TODO: remove this?
-        """
-        warningStrings = []
-        # check if text ends in EOT token:
-        if not self.textField.toPlainText().endswith('<|endoftext|>'):
-            warningStrings.append('Missing <|endoftext|> at document end!')
-        # check for trailing newline at end:
-        if self.textField.toPlainText().endswith('\n'):
-            warningStrings.append('Redundant empty newline at document end!')
-        # cat warnings or display that there ain't none of those:
-        if len(warningStrings) > 0:
-            self.warningsLabel.setText('Warnings: ' + ' '.join(warningStrings))
-        else:
-            self.warningsLabel.setText('No warnings.')
-    '''
 
 
 class QLineNumberArea(QWidget):
