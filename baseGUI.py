@@ -1903,7 +1903,6 @@ class TokenExplorer(QWidget):
     def tokenCheck(self):
         catchList = []
         checkStringEscaped = re.sub(r'(?P<specChar>[\[\].^$*+?{}|])', r'\\\g<specChar>', self.testString.text())
-        print(checkStringEscaped)
         checkExpression = re.compile(f'.*{checkStringEscaped}.*')
 
         for key, value in fixEncodes.items():
