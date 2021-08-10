@@ -19,7 +19,6 @@ import json
 import re
 import time
 
-from _GPT2.encoder import get_encoder
 import tokensToUTF
 
 from transformers import GPT2Tokenizer
@@ -41,11 +40,8 @@ argParser.add_argument('--file', type=str, help='Specify file to open')
 argParser.add_argument('--mode', type=str, help='Specify mode to show specified file in on start')
 args = argParser.parse_args()
 
-# more handy encoder reference:
-# encoder = get_encoder()
-
 # encoder = GPT2Tokenizer.from_pretrained("gpt2")
-# get proper reverse token dictionary:
+# get reverse token dictionary:
 fixEncodes = tokensToUTF.getFixEncodes()
 
 
@@ -112,11 +108,8 @@ class MainWindow(QMainWindow):
         # mode value persistence:
         self.persistentChunkStackStartIndex = 0
 
-        # intro screen showing on start:
-        # InitialIntroScreen = IntroScreen()
-        # self.setCentralWidget(InitialIntroScreen)
-
         if not args.file:
+            # intro screen showing on start:
             InitialIntroScreen = IntroScreen()
             self.setCentralWidget(InitialIntroScreen)
         else:
@@ -136,19 +129,18 @@ class MainWindow(QMainWindow):
                         self.setMode(args.mode)
                     else:
                         self.setMode('SourceInspector')
-                    # self.setMode('StatViewer')
                     self._createMenu()
                     self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
             elif self.curFileType == 'json':
                 print('Current file type is JSON, allowing appropriate modes...')
-                # print(self.curData)
                 self.allowedModes = ['ChunkStack', 'ChunkCombiner']
                 self.curData = json.loads(open(self.curFilePath, "r", encoding="UTF-8").read())
-                self.setMode('ChunkStack')
+                if args.mode:
+                    self.setMode(args.mode)
+                else:
+                    self.setMode('ChunkStack')
                 self._createMenu()
                 self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
-
-
 
         # save file keyboard shortcut:
         self.fileSaveShortcut = QShortcut(QKeySequence('Ctrl+S'), self)
@@ -359,29 +351,7 @@ class SourceInspector(QWidget):
         self.textField = QCodeEditor()
         self.textField.setPlainText(findMainWindow().curData)
         self.textField.textChanged.connect(self.textChange)
-        """
-        # instant token count:
-        self.tokensLabel = QLabel()
-        # self.tokens = encoder.encode(self.textField.toPlainText())
-        self.tokens = []
-        # self.tokenCount = len(self.tokens)
-        self.tokenCount = 0
-        self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-        # checkbox to turn off instant token count:
-        self.doCountTokens = False
-        self.tokensCheckBox = QCheckBox('Instant token count')
-        self.tokensCheckBox.setChecked(False)
-        self.tokensCheckBox.stateChanged.connect(self.tokenCountToggle)
-        # on-demand token count button:
-        self.tokenCountButton = QPushButton()
-        self.tokenCountButton.setText('Count tokens')
-        self.tokenCountButton.setEnabled(True)
-        self.tokenCountButton.clicked.connect(self.tokenButtonClick)
-        
-        self.layout.addWidget(self.tokensLabel, 0, 0)
-        self.layout.addWidget(self.tokenCountButton, 0, 1)
-        self.layout.addWidget(self.tokensCheckBox, 0, 2)
-        """
+
         # newlines checking:
         self.newlineMode = 'LineEnd'
         self.badLineCount = 0
@@ -415,11 +385,6 @@ class SourceInspector(QWidget):
 
         # self.issueBrowseLabel.setText(f'{str(self.curIssue + 1)}/{str(self.badLineCount)}')
 
-        # misc warnings:
-        # self.warningsLabel = QLabel('Warnings:')
-        # self.warningsLabel.setText('Warnings:')
-        # self.checkWarnables()
-
         self.layout.addWidget(self.newlinesLabel, 0, 0)
         self.layout.addWidget(self.newlineModeComboBox, 0, 1)
         self.layout.addWidget(self.issueBrowseLabel, 0, 2)
@@ -428,22 +393,6 @@ class SourceInspector(QWidget):
 
         self.layout.addWidget(self.textField, 1, 0, 1, 5)
 
-        # self.layout.addWidget(self.warningsLabel, 2, 0)
-    '''
-    def tokenCountToggle(self):
-        """switch realtime encoding/token count on and off"""
-        self.doCountTokens = self.tokensCheckBox.isChecked()
-        if self.tokensCheckBox.isChecked():
-            self.tokenCountButton.setEnabled(False)
-        else:
-            self.tokenCountButton.setEnabled(True)
-
-    def tokenButtonClick(self):
-        """on-demand token encoding and count"""
-        self.tokens = encoder.encode(self.textField.toPlainText())
-        self.tokenCount = len(self.tokens)
-        self.tokensLabel.setText('Tokens: ' + str(self.tokenCount))
-    '''
     def newLineModeChange(self):
         """newline checking mode selection and updating"""
         self.newlineMode = self.newlineModeComboBox.currentText()
