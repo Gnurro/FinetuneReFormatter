@@ -1659,6 +1659,8 @@ class ChunkStack(QWidget):
 
     def fillStack(self):
         """update the displayed chunk stack"""
+        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+            self.chunkAmount = len(findMainWindow().curData['chunks'])
         # print('Trying to clear ChunkStack..')
         self.clearStack()
         # print('Filling ChunkStack...')
@@ -1675,6 +1677,9 @@ class ChunkStack(QWidget):
 class ChunkStackNavigation(QWidget):
     """
     navigation bar for the ChunkStack
+
+    TODO: - fix wonky behavior when going from <12 chunks to >12 chunks
+            - figure out spinbox maximum thingy
     """
     def __init__(self, startIndex, chunkAmount):
         super(ChunkStackNavigation, self).__init__()
@@ -1687,6 +1692,8 @@ class ChunkStackNavigation(QWidget):
         # initial view position:
         self.startIndex = startIndex
         self.chunkAmount = chunkAmount
+        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+            self.chunkAmount = len(findMainWindow().curData['chunks'])
         # info label:
         self.navLabel = QLabel('View beginning at chunk index:')
         # change view position:
@@ -1715,6 +1722,9 @@ class ChunkStackNavigation(QWidget):
     def startIndexChange(self):
         """track changes in view position"""
         # make sure indexing can't be messed up:
+        # if len(findMainWindow().curData['chunks']) < self.chunkAmount:
+        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+            self.chunkAmount = len(findMainWindow().curData['chunks'])
         self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
         # apply the spinbox value:
         self.startIndex = self.startIndexSpinBox.value()
