@@ -1928,15 +1928,17 @@ class ChunkCombiner(QWidget):
 
         self.initTopHeader()
 
+        self.layout.addWidget(QHLine())
+
         # chunk type stack header:
-        self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
+        self.tagTypeStackHeaderLabel = QLabel('<b>Chunk types:</b>')
         self.layout.addWidget(self.tagTypeStackHeaderLabel)
 
         # chunk type settings:
         self.chunkTypeStack = TagTypeStack()
         self.layout.addWidget(self.chunkTypeStack)
 
-        self.initTypeButtons()
+        self.initTypesUtility()
 
         self.layout.addWidget(QHLine())
 
@@ -1944,6 +1946,9 @@ class ChunkCombiner(QWidget):
 
     def initTopHeader(self):
         self.topHeaderLayout = QHBoxLayout()
+
+        self.headerFileLabel = QLabel('<b>Current chunkfile:</b>')
+        self.topHeaderLayout.addWidget(self.headerFileLabel)
 
         self.chunkAmount = len(findMainWindow().curData['chunks'])
         self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
@@ -1959,47 +1964,69 @@ class ChunkCombiner(QWidget):
 
         self.layout.addLayout(self.topHeaderLayout)
 
-    def initTypeButtons(self):
-        self.typeButtonsLayout = QHBoxLayout()
+    def initTypesUtility(self):
+        self.typesUtilityLayout = QVBoxLayout()
+
+        self.typesUtilityHeaderLayout = QHBoxLayout()
+
+        self.typesUtilityHeaderLabel = QLabel('<b>Type handling:</b>')
+        self.typesUtilityHeaderLayout.addWidget(self.typesUtilityHeaderLabel)
+
+        self.typesUtilityLayout.addLayout(self.typesUtilityHeaderLayout)
+
+        self.typesUtilityNewTypeLayout = QHBoxLayout()
 
         # new chunk type name label:
         self.addTypeNameLabel = QLabel('New type name:')
-        self.typeButtonsLayout.addWidget(self.addTypeNameLabel)
+        self.typesUtilityNewTypeLayout.addWidget(self.addTypeNameLabel)
 
         # new chunk type name:
         self.addTypeNameEdit = QLineEdit('newType')
         self.addTypeNameEdit.setMaxLength(12)
-        self.typeButtonsLayout.addWidget(self.addTypeNameEdit)
+        self.typesUtilityNewTypeLayout.addWidget(self.addTypeNameEdit)
 
         # add chunk type:
         self.addTypeButton = QPushButton('Add new type')
         self.addTypeButton.clicked.connect(self.addChunkType)
-        self.typeButtonsLayout.addWidget(self.addTypeButton)
+        self.typesUtilityNewTypeLayout.addWidget(self.addTypeButton)
+
+        self.typesUtilityLayout.addLayout(self.typesUtilityNewTypeLayout)
 
         # saving chunk type handling to project file:
         self.saveTagTypeDataButton = QPushButton('Save type handling data')
         self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
-        self.typeButtonsLayout.addWidget(self.saveTagTypeDataButton)
+        self.typesUtilityLayout.addWidget(self.saveTagTypeDataButton)
 
-        self.layout.addLayout(self.typeButtonsLayout)
+        self.layout.addLayout(self.typesUtilityLayout)
 
     def initExport(self):
-        self.exportLayout = QHBoxLayout()
+        self.exportLayout = QVBoxLayout()
+
+        self.exportHeaderLayout = QHBoxLayout()
+
+        self.exportHeaderLabel = QLabel('<b>Combine & export:')
+        self.exportHeaderLayout.addWidget(self.exportHeaderLabel)
+
+        self.exportLayout.addLayout(self.exportHeaderLayout)
+
+        self.exportUtilityLayout = QHBoxLayout()
 
         # combined file settings:
         self.fileSuffixLabel = QLabel('Combined file suffix:')
-        self.exportLayout.addWidget(self.fileSuffixLabel)
+        self.exportUtilityLayout.addWidget(self.fileSuffixLabel)
         if findMainWindow().settings:
             self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
         else:
             self.fileSuffixString = '_combined'
         self.fileSuffix = QLineEdit(self.fileSuffixString)
-        self.exportLayout.addWidget(self.fileSuffix)
+        self.exportUtilityLayout.addWidget(self.fileSuffix)
 
         # add type-based strings, combine chunks and export as plaintext:
         self.combineExportButton = QPushButton('Export combined chunks')
         self.combineExportButton.clicked.connect(self.combineExport)
-        self.exportLayout.addWidget(self.combineExportButton)
+        self.exportUtilityLayout.addWidget(self.combineExportButton)
+
+        self.exportLayout.addLayout(self.exportUtilityLayout)
 
         self.layout.addLayout(self.exportLayout)
 
@@ -2069,7 +2096,10 @@ class TagTypeStack(QWidget):
         super(TagTypeStack, self).__init__()
 
         self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.AlignTop)
+        # self.layout.setAlignment(Qt.AlignTop)
+        # self.layout.setAlignment(Qt.AlignLeft)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
         self.tagTypes = {}
@@ -2081,6 +2111,8 @@ class TagTypeStack(QWidget):
             self.layout.addWidget(curTagTypeHolder)
 
     def updateTypes(self):
+        print('updating types')
+        print(self.tagTypes)
         # clear layout:  ugly, but works...
         curId = self.layout.count()-1
         while curId >= 0:
@@ -2089,8 +2121,12 @@ class TagTypeStack(QWidget):
             self.layout.removeItem(self.layout.itemAt(curId))
             curId -= 1
 
+        print(findMainWindow().curData['projectData']['tagTypeData'])
+
         if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
             self.tagTypes = findMainWindow().curData['projectData']['tagTypeData']
+
+        print(self.tagTypes)
 
         # add types:
         for tagType in self.tagTypes:
@@ -2114,11 +2150,9 @@ class TagTypeHolder(QWidget):
 
         self.tagType = tagType
         self.tagTypeIdLabel = QLabel(f'<b>{tagType}</b>')
-        # self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
         self.headerLayout.addWidget(self.tagTypeIdLabel)
 
         self.tagTypeSaveWarnLabel = QLabel('')
-        # self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 1)
         self.headerLayout.addWidget(self.tagTypeSaveWarnLabel)
 
         self.layout.addLayout(self.headerLayout)
@@ -2127,18 +2161,15 @@ class TagTypeHolder(QWidget):
 
         self.tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
         self.tagTypeFrontNewlineCheckbox.clicked.connect(self.dataChanged)
-        # self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
         self.checksButtonsLayout.addWidget(self.tagTypeFrontNewlineCheckbox)
 
         self.tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
         self.tagTypeBackNewlineCheckbox.clicked.connect(self.dataChanged)
-        # self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
         self.checksButtonsLayout.addWidget(self.tagTypeBackNewlineCheckbox)
 
         self.deleteButton = QPushButton('Delete')
         self.deleteButton.setFixedWidth(60)
         self.deleteButton.clicked.connect(self.deleteType)
-        # self.layout.addWidget(self.deleteButton, 1, 2)
         self.checksButtonsLayout.addWidget(self.deleteButton)
 
         self.layout.addLayout(self.checksButtonsLayout)
@@ -2146,13 +2177,10 @@ class TagTypeHolder(QWidget):
         self.prefixLayout = QHBoxLayout()
 
         self.tagTypePrefixLabel = QLabel('Prefix:')
-        # self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
         self.prefixLayout.addWidget(self.tagTypePrefixLabel)
 
         self.tagTypePrefix = QLineEdit()
-        self.tagTypePrefix.textChanged.connect(self.dataChanged)
-        # self.layout.addWidget(self.tagTypePrefix, 2, 1, 1, 2)
-        # self.layout.addWidget(self.tagTypePrefix, 2, 1)
+        # self.tagTypePrefix.textChanged.connect(self.dataChanged)
         self.prefixLayout.addWidget(self.tagTypePrefix)
 
         self.layout.addLayout(self.prefixLayout)
@@ -2160,13 +2188,10 @@ class TagTypeHolder(QWidget):
         self.suffixLayout = QHBoxLayout()
 
         self.tagTypeSuffixLabel = QLabel('Suffix:')
-        # self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
         self.suffixLayout.addWidget(self.tagTypeSuffixLabel)
 
         self.tagTypeSuffix = QLineEdit()
-        self.tagTypeSuffix.textChanged.connect(self.dataChanged)
-        # self.layout.addWidget(self.tagTypeSuffix, 3, 1, 1, 2)
-        # self.layout.addWidget(self.tagTypeSuffix, 3, 1)
+        # self.tagTypeSuffix.textChanged.connect(self.dataChanged)
         self.suffixLayout.addWidget(self.tagTypeSuffix)
 
         self.layout.addLayout(self.suffixLayout)
@@ -2184,6 +2209,9 @@ class TagTypeHolder(QWidget):
         else:
             self.tagTypeSaveWarnLabel.setText('<b>(not defined)</b>')
 
+        self.tagTypePrefix.textChanged.connect(self.dataChanged)
+        self.tagTypeSuffix.textChanged.connect(self.dataChanged)
+
     def getContent(self):
         outTagType = self.tagType
         preNewlineBool = self.tagTypeFrontNewlineCheckbox.isChecked()
@@ -2193,12 +2221,20 @@ class TagTypeHolder(QWidget):
         return outTagType, [preNewlineBool, postNewlineBool, prefix, suffix]
 
     def dataChanged(self):
+        # self.tagTypeSaveWarnLabel.setText('<b>(not saved)</b>')
+        findMainWindow().curData['projectData']['tagTypeData'][self.tagType][0] = self.tagTypeFrontNewlineCheckbox.isChecked()
+        findMainWindow().curData['projectData']['tagTypeData'][self.tagType][1] = self.tagTypeBackNewlineCheckbox.isChecked()
+        findMainWindow().curData['projectData']['tagTypeData'][self.tagType][2] = self.tagTypePrefix.text()
+        findMainWindow().curData['projectData']['tagTypeData'][self.tagType][3] = self.tagTypeSuffix.text()
         findMainWindow().toggleFileUnsaved()
 
     def deleteType(self):
         findMainWindow().curData['projectData']['tagTypeData'].pop(self.tagType)
-        # print(findMainWindow().children()[1].children()[4])
-        findMainWindow().children()[1].children()[4].updateTypes()
+        print('Chunkcombiner children:')
+        print(findMainWindow().children()[1].children())
+        print('Typestack?:')
+        print(findMainWindow().children()[1].children()[6])
+        findMainWindow().children()[1].children()[6].updateTypes()
 
 
 class TokenExplorer(QWidget):
