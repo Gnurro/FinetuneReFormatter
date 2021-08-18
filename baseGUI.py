@@ -2105,42 +2105,71 @@ class TagTypeHolder(QWidget):
     def __init__(self, tagType):
         super(TagTypeHolder, self).__init__()
 
-        self.layout = QGridLayout()
+        # self.layout = QGridLayout()
+        self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
 
-        self.tagType = tagType
-        self.tagTypeIdLabel = QLabel(tagType)
-        self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
+        self.headerLayout = QHBoxLayout()
 
-        self.deleteButton = QPushButton('Delete')
-        self.deleteButton.clicked.connect(self.deleteType)
-        self.layout.addWidget(self.deleteButton, 0, 1)
+        self.tagType = tagType
+        self.tagTypeIdLabel = QLabel(f'<b>{tagType}</b>')
+        # self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
+        self.headerLayout.addWidget(self.tagTypeIdLabel)
 
         self.tagTypeSaveWarnLabel = QLabel('')
-        self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 2)
+        # self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 1)
+        self.headerLayout.addWidget(self.tagTypeSaveWarnLabel)
+
+        self.layout.addLayout(self.headerLayout)
+
+        self.checksButtonsLayout = QHBoxLayout()
 
         self.tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
         self.tagTypeFrontNewlineCheckbox.clicked.connect(self.dataChanged)
-        self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
+        # self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
+        self.checksButtonsLayout.addWidget(self.tagTypeFrontNewlineCheckbox)
 
         self.tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
         self.tagTypeBackNewlineCheckbox.clicked.connect(self.dataChanged)
-        self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
+        # self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
+        self.checksButtonsLayout.addWidget(self.tagTypeBackNewlineCheckbox)
+
+        self.deleteButton = QPushButton('Delete')
+        self.deleteButton.setFixedWidth(60)
+        self.deleteButton.clicked.connect(self.deleteType)
+        # self.layout.addWidget(self.deleteButton, 1, 2)
+        self.checksButtonsLayout.addWidget(self.deleteButton)
+
+        self.layout.addLayout(self.checksButtonsLayout)
+
+        self.prefixLayout = QHBoxLayout()
 
         self.tagTypePrefixLabel = QLabel('Prefix:')
-        self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
+        # self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
+        self.prefixLayout.addWidget(self.tagTypePrefixLabel)
 
         self.tagTypePrefix = QLineEdit()
         self.tagTypePrefix.textChanged.connect(self.dataChanged)
-        self.layout.addWidget(self.tagTypePrefix, 2, 1)
+        # self.layout.addWidget(self.tagTypePrefix, 2, 1, 1, 2)
+        # self.layout.addWidget(self.tagTypePrefix, 2, 1)
+        self.prefixLayout.addWidget(self.tagTypePrefix)
+
+        self.layout.addLayout(self.prefixLayout)
+
+        self.suffixLayout = QHBoxLayout()
 
         self.tagTypeSuffixLabel = QLabel('Suffix:')
-        self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
+        # self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
+        self.suffixLayout.addWidget(self.tagTypeSuffixLabel)
 
         self.tagTypeSuffix = QLineEdit()
         self.tagTypeSuffix.textChanged.connect(self.dataChanged)
-        self.layout.addWidget(self.tagTypeSuffix, 3, 1)
+        # self.layout.addWidget(self.tagTypeSuffix, 3, 1, 1, 2)
+        # self.layout.addWidget(self.tagTypeSuffix, 3, 1)
+        self.suffixLayout.addWidget(self.tagTypeSuffix)
+
+        self.layout.addLayout(self.suffixLayout)
 
         if tagType in findMainWindow().curData['projectData']['tagTypeData'].keys():
             self.tagTypeSaveWarnLabel.setText('')
