@@ -1902,24 +1902,9 @@ class ChunkCombiner(QWidget):
     def __init__(self):
         super(ChunkCombiner, self).__init__()
 
-        # self.layout = QGridLayout()
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
-
-        self.chunkAmount = len(findMainWindow().curData['chunks'])
-        self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
-        # self.layout.addWidget(self.chunkAmountLabel, 0, 0)
-        self.layout.addWidget(self.chunkAmountLabel)
-
-        # check working data for chunk type (tags):
-        chunkTagsList = [chunk['type'] for chunk in findMainWindow().curData['chunks']]
-        self.tagTypes = list(set(chunkTagsList))
-        self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
-        tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
-        self.tagTypesLabel = QLabel(f'Chunk types (amount): {", ".join(tagTypeCounts)}')
-        # self.layout.addWidget(self.tagTypesLabel, 0, 1)
-        self.layout.addWidget(self.tagTypesLabel)
 
         # persistent chunk type handling settings:
         self.tagTypeData = {}
@@ -1927,51 +1912,78 @@ class ChunkCombiner(QWidget):
             self.tagTypeData = findMainWindow().curData['projectData']['tagTypeData']
         print(f'tagTypeData: {self.tagTypeData}')
 
+        self.initTopHeader()
+
         # chunk type stack header:
         self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
-        # self.layout.addWidget(self.tagTypeStackHeaderLabel, 1, 0)
         self.layout.addWidget(self.tagTypeStackHeaderLabel)
 
         # chunk type settings:
         self.chunkTypeStack = TagTypeStack(self.tagTypes)
-        # self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
         self.layout.addWidget(self.chunkTypeStack)
+
+        self.initTypeButtons()
+
+        self.layout.addWidget(QHLine())
+
+        self.initExport()
+
+    def initTopHeader(self):
+        self.topHeaderLayout = QHBoxLayout()
+
+        self.chunkAmount = len(findMainWindow().curData['chunks'])
+        self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
+        self.topHeaderLayout.addWidget(self.chunkAmountLabel)
+
+        # check working data for chunk type (tags):
+        chunkTagsList = [chunk['type'] for chunk in findMainWindow().curData['chunks']]
+        self.tagTypes = list(set(chunkTagsList))
+        self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
+        tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
+        self.tagTypesLabel = QLabel(f'Chunk types (amount): {", ".join(tagTypeCounts)}')
+        self.topHeaderLayout.addWidget(self.tagTypesLabel)
+
+        self.layout.addLayout(self.topHeaderLayout)
+
+    def initTypeButtons(self):
+        self.typeButtonsLayout = QHBoxLayout()
 
         # add chunk type:
         self.addTypeButton = QPushButton('Add chunk type')
         self.addTypeButton.clicked.connect(self.addChunkType)
-        # self.layout.addWidget(self.addTypeButton, 3, 0)
-        self.layout.addWidget(self.addTypeButton)
+        self.typeButtonsLayout.addWidget(self.addTypeButton)
 
         # update chunk types:
         self.updateTypeButton = QPushButton('Update chunk types')
         self.updateTypeButton.clicked.connect(self.updateChunkTypeStack)
-        # self.layout.addWidget(self.updateTypeButton, 3, 1)
-        self.layout.addWidget(self.updateTypeButton)
+        self.typeButtonsLayout.addWidget(self.updateTypeButton)
 
         # saving chunk type handling to project file:
         self.saveTagTypeDataButton = QPushButton('Save type handling data')
         self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
-        # self.layout.addWidget(self.saveTagTypeDataButton, 3, 2)
-        self.layout.addWidget(self.saveTagTypeDataButton)
+        self.typeButtonsLayout.addWidget(self.saveTagTypeDataButton)
+
+        self.layout.addLayout(self.typeButtonsLayout)
+
+    def initExport(self):
+        self.exportLayout = QHBoxLayout()
 
         # combined file settings:
         self.fileSuffixLabel = QLabel('Combined file suffix:')
-        # self.layout.addWidget(self.fileSuffixLabel, 4, 0)
-        self.layout.addWidget(self.fileSuffixLabel)
+        self.exportLayout.addWidget(self.fileSuffixLabel)
 
         self.fileSuffixString = '_combined'
         if findMainWindow().settings:
             self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
         self.fileSuffix = QLineEdit(self.fileSuffixString)
-        # self.layout.addWidget(self.fileSuffix, 4, 1)
-        self.layout.addWidget(self.fileSuffix)
+        self.exportLayout.addWidget(self.fileSuffix)
 
         # add type-based strings, combine chunks and export as plaintext:
         self.combineExportButton = QPushButton('Export combined chunks')
         self.combineExportButton.clicked.connect(self.combineExport)
-        # self.layout.addWidget(self.combineExportButton, 4, 2)
-        self.layout.addWidget(self.combineExportButton)
+        self.exportLayout.addWidget(self.combineExportButton)
+
+        self.layout.addLayout(self.exportLayout)
 
     def getTagTypeStackItems(self):
         for index in range(1, len(self.chunkTypeStack.children())):
