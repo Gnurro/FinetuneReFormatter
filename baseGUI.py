@@ -1632,15 +1632,26 @@ class ChunkStack(QWidget):
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
         # initial view position:
-        self.startIndex = startIndex
+        # self.startIndex = startIndex
+        self.startIndex = 0
         if not findMainWindow().persistentChunkStackStartIndex == 0:
             self.startIndex = findMainWindow().persistentChunkStackStartIndex
-        self.chunkAmount = chunkAmount
+        # self.chunkAmount = chunkAmount
         if findMainWindow().settings:
             self.chunkAmount = findMainWindow().settings['ChunkStack']['chunkAmount']
+        else:
+            self.chunkAmount = 12
+        if len(findMainWindow().curData['chunks']) < self.chunkAmount:
+            self.chunkAmount = len(findMainWindow().curData['chunks'])
         # change view position:
         curNavBar = ChunkStackNavigation(startIndex=self.startIndex, chunkAmount=self.chunkAmount)
         self.navBar = curNavBar
+
+        # load tokenizer if it's not loaded yet:
+        if not findMainWindow().tokenizerLoaded:
+            global encoder
+            encoder = GPT2Tokenizer.from_pretrained("gpt2")
+            findMainWindow().tokenizerLoaded = True
 
         self.layout.addWidget(self.navBar)
         # initial stack filling:
@@ -1878,41 +1889,6 @@ class ChunkTextEdit(QWidget):
         self.parentWidget().fillStack()
 
 
-class TokenExplorer(QWidget):
-    def __init__(self):
-        super(TokenExplorer, self).__init__()
-
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
-
-        self.testStringLabel = QLabel('String to check:')
-        self.testString = QLineEdit()
-
-        self.checkButton = QPushButton('Find tokens containing string')
-        self.checkButton.clicked.connect(self.tokenCheck)
-
-        self.outputText = QTextEdit()
-        self.outputText.setReadOnly(True)
-
-        self.layout.addWidget(self.testStringLabel, 0, 0)
-        self.layout.addWidget(self.testString, 0, 1)
-        self.layout.addWidget(self.checkButton, 0, 2)
-
-        self.layout.addWidget(self.outputText, 1, 0, 1, 3)
-
-    def tokenCheck(self):
-        catchList = []
-        checkStringEscaped = re.sub(r'(?P<specChar>[\[\].^$*+?{}|])', r'\\\g<specChar>', self.testString.text())
-        checkExpression = re.compile(f'.*{checkStringEscaped}.*')
-
-        for key, value in fixEncodes.items():
-            matchedExpression = checkExpression.match(key)
-            if matchedExpression:
-                catchList.append(key)
-
-        self.outputText.setText('\n'.join(catchList))
-
-
 class ChunkCombiner(QWidget):
     """
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
@@ -1926,49 +1902,76 @@ class ChunkCombiner(QWidget):
     def __init__(self):
         super(ChunkCombiner, self).__init__()
 
-        self.layout = QGridLayout()
+        # self.layout = QGridLayout()
+        self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
 
         self.chunkAmount = len(findMainWindow().curData['chunks'])
         self.chunkAmountLabel = QLabel(f'Number of Chunks: {self.chunkAmount}')
+        # self.layout.addWidget(self.chunkAmountLabel, 0, 0)
+        self.layout.addWidget(self.chunkAmountLabel)
+
         # check working data for chunk type (tags):
         chunkTagsList = [chunk['type'] for chunk in findMainWindow().curData['chunks']]
         self.tagTypes = list(set(chunkTagsList))
         self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
         tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
         self.tagTypesLabel = QLabel(f'Chunk types (amount): {", ".join(tagTypeCounts)}')
-        # saving chunk type handling to project file:
-        self.saveTagTypeDataButton = QPushButton('Save type handling data')
-        self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
-        # combined file settings:
-        self.fileSuffixLabel = QLabel('Combined file suffix:')
-        self.fileSuffixString = '_combined'
-        if findMainWindow().settings:
-            self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
-        self.fileSuffix = QLineEdit(self.fileSuffixString)
-        # add type-based strings, combine chunks and export as plaintext:
-        self.combineExportButton = QPushButton('Export combined chunks')
-        self.combineExportButton.clicked.connect(self.combineExport)
+        # self.layout.addWidget(self.tagTypesLabel, 0, 1)
+        self.layout.addWidget(self.tagTypesLabel)
+
         # persistent chunk type handling settings:
         self.tagTypeData = {}
         if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
             self.tagTypeData = findMainWindow().curData['projectData']['tagTypeData']
         print(f'tagTypeData: {self.tagTypeData}')
 
+        # chunk type stack header:
         self.tagTypeStackHeaderLabel = QLabel('<b>Chunk type handling:</b>')
+        # self.layout.addWidget(self.tagTypeStackHeaderLabel, 1, 0)
+        self.layout.addWidget(self.tagTypeStackHeaderLabel)
+
+        # chunk type settings:
         self.chunkTypeStack = TagTypeStack(self.tagTypes)
+        # self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
+        self.layout.addWidget(self.chunkTypeStack)
 
-        self.layout.addWidget(self.chunkAmountLabel, 0, 0)
-        self.layout.addWidget(self.tagTypesLabel, 0, 1)
-        self.layout.addWidget(self.saveTagTypeDataButton, 0, 2)
+        # add chunk type:
+        self.addTypeButton = QPushButton('Add chunk type')
+        self.addTypeButton.clicked.connect(self.addChunkType)
+        # self.layout.addWidget(self.addTypeButton, 3, 0)
+        self.layout.addWidget(self.addTypeButton)
 
-        self.layout.addWidget(self.fileSuffixLabel, 1, 0)
-        self.layout.addWidget(self.fileSuffix, 1, 1)
-        self.layout.addWidget(self.combineExportButton, 1, 2)
+        # update chunk types:
+        self.updateTypeButton = QPushButton('Update chunk types')
+        self.updateTypeButton.clicked.connect(self.updateChunkTypeStack)
+        # self.layout.addWidget(self.updateTypeButton, 3, 1)
+        self.layout.addWidget(self.updateTypeButton)
 
-        self.layout.addWidget(self.tagTypeStackHeaderLabel, 2, 0)
-        self.layout.addWidget(self.chunkTypeStack, 3, 0, 1, 3)
+        # saving chunk type handling to project file:
+        self.saveTagTypeDataButton = QPushButton('Save type handling data')
+        self.saveTagTypeDataButton.clicked.connect(self.saveTagTypeData)
+        # self.layout.addWidget(self.saveTagTypeDataButton, 3, 2)
+        self.layout.addWidget(self.saveTagTypeDataButton)
+
+        # combined file settings:
+        self.fileSuffixLabel = QLabel('Combined file suffix:')
+        # self.layout.addWidget(self.fileSuffixLabel, 4, 0)
+        self.layout.addWidget(self.fileSuffixLabel)
+
+        self.fileSuffixString = '_combined'
+        if findMainWindow().settings:
+            self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
+        self.fileSuffix = QLineEdit(self.fileSuffixString)
+        # self.layout.addWidget(self.fileSuffix, 4, 1)
+        self.layout.addWidget(self.fileSuffix)
+
+        # add type-based strings, combine chunks and export as plaintext:
+        self.combineExportButton = QPushButton('Export combined chunks')
+        self.combineExportButton.clicked.connect(self.combineExport)
+        # self.layout.addWidget(self.combineExportButton, 4, 2)
+        self.layout.addWidget(self.combineExportButton)
 
     def getTagTypeStackItems(self):
         for index in range(1, len(self.chunkTypeStack.children())):
@@ -1985,10 +1988,21 @@ class ChunkCombiner(QWidget):
 
     def updateChunkTypeStack(self):
         print('updating chunk types')
-        print(self.layout.itemAt(self.layout.count()-1))
-        self.layout.itemAt(self.layout.count()-1).widget().setParent(None)
+        # print(self.layout.itemAt(self.layout.count()-1))
+        # print(self.children())
+        print(self.layout.itemAt(self.layout.count()-7).widget())
+        self.layout.itemAt(self.layout.count()-7).widget().setParent(None)
         self.chunkTypeStack = TagTypeStack(self.tagTypes)
-        self.layout.addWidget(self.chunkTypeStack, 3, 0, 1, 3)
+        self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
+
+    def addChunkType(self):
+        print('adding new chunk type')
+        self.tagTypeData['newType'] = [False, False, '', '']
+        print(self.tagTypeData)
+        self.chunkTypeStack.setParent(None)
+        self.chunkTypeStack.deleteLater()
+        self.chunkTypeStack = TagTypeStack(self.tagTypes)
+        self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
 
     def saveTagTypeData(self):
         print('saving tag type data')
@@ -2105,6 +2119,41 @@ class TagTypeHolder(QWidget):
 
     def dataChanged(self):
         findMainWindow().toggleFileUnsaved()
+
+
+class TokenExplorer(QWidget):
+    def __init__(self):
+        super(TokenExplorer, self).__init__()
+
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+
+        self.testStringLabel = QLabel('String to check:')
+        self.testString = QLineEdit()
+
+        self.checkButton = QPushButton('Find tokens containing string')
+        self.checkButton.clicked.connect(self.tokenCheck)
+
+        self.outputText = QTextEdit()
+        self.outputText.setReadOnly(True)
+
+        self.layout.addWidget(self.testStringLabel, 0, 0)
+        self.layout.addWidget(self.testString, 0, 1)
+        self.layout.addWidget(self.checkButton, 0, 2)
+
+        self.layout.addWidget(self.outputText, 1, 0, 1, 3)
+
+    def tokenCheck(self):
+        catchList = []
+        checkStringEscaped = re.sub(r'(?P<specChar>[\[\].^$*+?{}|])', r'\\\g<specChar>', self.testString.text())
+        checkExpression = re.compile(f'.*{checkStringEscaped}.*')
+
+        for key, value in fixEncodes.items():
+            matchedExpression = checkExpression.match(key)
+            if matchedExpression:
+                catchList.append(key)
+
+        self.outputText.setText('\n'.join(catchList))
 
 
 class QHLine(QFrame):
