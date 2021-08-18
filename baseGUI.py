@@ -1750,9 +1750,6 @@ class ChunkTextEdit(QWidget):
     TODO:
         - token threshold warnings
             - ...define token thresholds and store them
-        - change chunkType edit to dropdown
-            - chunkTypes defined elsewhere
-            - might only work nicely with chunkFile/project handler widget
         - make more compact version
     """
     def __init__(self, chunkID=0, chunkContent={'text': 'Chunk content text...', 'type': 'generic'}):
@@ -1827,14 +1824,14 @@ class ChunkTextEdit(QWidget):
         bottomSpliceAction.setText('Add chunk below.')
         bottomSpliceAction.triggered.connect(self.spliceBelow)
         self.advancedMenu.menu().addAction(bottomSpliceAction)
-
+        """
         # edit action type tag:
         # TODO: change this to dropdown?
         self.editTypeAction = QWidgetAction(self.advancedMenu)
         self.editTypeAction.setText('Edit chunk type.')
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
-
+        """
         # delete chunk:
         deleteChunkAction = QWidgetAction(self.advancedMenu)
         deleteChunkAction.setText('Delete chunk.')
@@ -1914,9 +1911,6 @@ class ChunkCombiner(QWidget):
     Combine chunkfile content and insert newlines, pre- and suffixes depending on chunk type
 
     TODO:
-        - add proper chunk type toolset
-            - move type defs here fully
-                - then turn ChunkStack type tag edit into dropdown
         - export file dialog?
     """
     def __init__(self):
@@ -1968,15 +1962,19 @@ class ChunkCombiner(QWidget):
     def initTypeButtons(self):
         self.typeButtonsLayout = QHBoxLayout()
 
+        # new chunk type name label:
+        self.addTypeNameLabel = QLabel('New type name:')
+        self.typeButtonsLayout.addWidget(self.addTypeNameLabel)
+
+        # new chunk type name:
+        self.addTypeNameEdit = QLineEdit('newType')
+        self.addTypeNameEdit.setMaxLength(12)
+        self.typeButtonsLayout.addWidget(self.addTypeNameEdit)
+
         # add chunk type:
-        self.addTypeButton = QPushButton('Add chunk type')
+        self.addTypeButton = QPushButton('Add new type')
         self.addTypeButton.clicked.connect(self.addChunkType)
         self.typeButtonsLayout.addWidget(self.addTypeButton)
-
-        # update chunk types:
-        self.updateTypeButton = QPushButton('Update chunk types')
-        self.updateTypeButton.clicked.connect(self.updateChunkTypeStack)
-        self.typeButtonsLayout.addWidget(self.updateTypeButton)
 
         # saving chunk type handling to project file:
         self.saveTagTypeDataButton = QPushButton('Save type handling data')
@@ -2024,7 +2022,7 @@ class ChunkCombiner(QWidget):
 
     def addChunkType(self):
         print('adding new chunk type')
-        self.tagTypeData['newType'] = [False, False, '', '']
+        self.tagTypeData[self.addTypeNameEdit.text()] = [False, False, '', '']
         print(self.tagTypeData)
         findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
         self.chunkTypeStack.updateTypes()
@@ -2066,7 +2064,6 @@ class ChunkCombiner(QWidget):
 class TagTypeStack(QWidget):
     """
     widget to hold list of chunk types and keep everything interactive
-
     """
     def __init__(self):
         super(TagTypeStack, self).__init__()
@@ -2091,6 +2088,10 @@ class TagTypeStack(QWidget):
             self.layout.itemAt(curId).widget().setParent(None)
             self.layout.removeItem(self.layout.itemAt(curId))
             curId -= 1
+
+        if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
+            self.tagTypes = findMainWindow().curData['projectData']['tagTypeData']
+
         # add types:
         for tagType in self.tagTypes:
             curTagTypeHolder = TagTypeHolder(tagType)
@@ -2110,20 +2111,36 @@ class TagTypeHolder(QWidget):
 
         self.tagType = tagType
         self.tagTypeIdLabel = QLabel(tagType)
+        self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
+
+        self.deleteButton = QPushButton('Delete')
+        self.deleteButton.clicked.connect(self.deleteType)
+        self.layout.addWidget(self.deleteButton, 0, 1)
+
         self.tagTypeSaveWarnLabel = QLabel('')
+        self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 2)
 
         self.tagTypeFrontNewlineCheckbox = QCheckBox('Add newline before')
         self.tagTypeFrontNewlineCheckbox.clicked.connect(self.dataChanged)
+        self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
+
         self.tagTypeBackNewlineCheckbox = QCheckBox('Add newline after')
         self.tagTypeBackNewlineCheckbox.clicked.connect(self.dataChanged)
+        self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
 
         self.tagTypePrefixLabel = QLabel('Prefix:')
+        self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
+
         self.tagTypePrefix = QLineEdit()
         self.tagTypePrefix.textChanged.connect(self.dataChanged)
+        self.layout.addWidget(self.tagTypePrefix, 2, 1)
 
         self.tagTypeSuffixLabel = QLabel('Suffix:')
+        self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
+
         self.tagTypeSuffix = QLineEdit()
         self.tagTypeSuffix.textChanged.connect(self.dataChanged)
+        self.layout.addWidget(self.tagTypeSuffix, 3, 1)
 
         if tagType in findMainWindow().curData['projectData']['tagTypeData'].keys():
             self.tagTypeSaveWarnLabel.setText('')
@@ -2138,15 +2155,6 @@ class TagTypeHolder(QWidget):
         else:
             self.tagTypeSaveWarnLabel.setText('<b>(not defined)</b>')
 
-        self.layout.addWidget(self.tagTypeIdLabel, 0, 0)
-        self.layout.addWidget(self.tagTypeSaveWarnLabel, 0, 1)
-        self.layout.addWidget(self.tagTypeFrontNewlineCheckbox, 1, 0)
-        self.layout.addWidget(self.tagTypeBackNewlineCheckbox, 1, 1)
-        self.layout.addWidget(self.tagTypePrefixLabel, 2, 0)
-        self.layout.addWidget(self.tagTypePrefix, 2, 1)
-        self.layout.addWidget(self.tagTypeSuffixLabel, 3, 0)
-        self.layout.addWidget(self.tagTypeSuffix, 3, 1)
-
     def getContent(self):
         outTagType = self.tagType
         preNewlineBool = self.tagTypeFrontNewlineCheckbox.isChecked()
@@ -2157,6 +2165,11 @@ class TagTypeHolder(QWidget):
 
     def dataChanged(self):
         findMainWindow().toggleFileUnsaved()
+
+    def deleteType(self):
+        findMainWindow().curData['projectData']['tagTypeData'].pop(self.tagType)
+        # print(findMainWindow().children()[1].children()[4])
+        findMainWindow().children()[1].children()[4].updateTypes()
 
 
 class TokenExplorer(QWidget):
