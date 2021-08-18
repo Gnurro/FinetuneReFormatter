@@ -1781,12 +1781,32 @@ class ChunkTextEdit(QWidget):
         self.tokensLabel = QLabel('Tokens: ' + str(self.tokenCount))
         self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignTop)
 
+        """
         # chunk type tag:
         self.typeField = QLineEdit(chunkContent['type'])
         self.typeField.setMaxLength(12)
         self.typeField.setMaximumWidth(80)
         self.typeField.setEnabled(False)
         self.typeField.editingFinished.connect(self.updateType)
+        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignTop)
+        """
+        # chunk type tag:
+        self.typeField = QComboBox()
+        self.typeField.setMaximumWidth(80)
+        # get chunk types:
+        if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
+            self.tagTypeData = findMainWindow().curData['projectData']['tagTypeData']
+            # add chunk types to dropdown:
+            for tagType in self.tagTypeData.keys():
+                self.typeField.addItem(tagType)
+            # set current chunk type:
+            self.typeField.setCurrentText(chunkContent['type'])
+        else:
+            # if no overall chunk type data is defined, use type tag:
+            self.typeField.addItem(chunkContent['type'])
+
+        self.typeField.currentTextChanged.connect(self.updateType)
+
         self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignTop)
 
         # 'More' button:
@@ -1822,21 +1842,6 @@ class ChunkTextEdit(QWidget):
         self.advancedMenu.menu().addAction(deleteChunkAction)
 
         self.infoLabel = QLabel('ID: ' + str(chunkID) + ' Tokens: ' + str(self.tokenCount))
-
-
-
-
-
-        # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignTop)
-        # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignRight)
-
-
-
-        # self.layout.addWidget(self.typeField, 1, 1, alignment=Qt.AlignRight)
-
-
-        # self.layout.addWidget(self.advancedMenu, 2, 1, alignment=Qt.AlignRight)
-
 
     def textChange(self):
         """
@@ -1886,7 +1891,9 @@ class ChunkTextEdit(QWidget):
 
     def updateType(self):
         """update chunk type tag in working data"""
-        findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
+        # findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.text()
+        findMainWindow().curData['chunks'][self.chunkID]['type'] = self.typeField.currentText()
+        print(f"updated chunk {self.chunkID} type: {findMainWindow().curData['chunks'][self.chunkID]['type']}")
         findMainWindow().toggleFileUnsaved()
 
     def deleteChunk(self):
