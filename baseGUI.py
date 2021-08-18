@@ -1919,7 +1919,8 @@ class ChunkCombiner(QWidget):
         self.layout.addWidget(self.tagTypeStackHeaderLabel)
 
         # chunk type settings:
-        self.chunkTypeStack = TagTypeStack(self.tagTypes)
+        # self.chunkTypeStack = TagTypeStack(self.tagTypes)
+        self.chunkTypeStack = TagTypeStack()
         self.layout.addWidget(self.chunkTypeStack)
 
         self.initTypeButtons()
@@ -1940,7 +1941,7 @@ class ChunkCombiner(QWidget):
         self.tagTypes = list(set(chunkTagsList))
         self.tagCounts = [chunkTagsList.count(tagType) for tagType in self.tagTypes]
         tagTypeCounts = [f'{self.tagTypes[index]} ({self.tagCounts[index]})' for index in range(len(self.tagTypes))]
-        self.tagTypesLabel = QLabel(f'Chunk types (amount): {", ".join(tagTypeCounts)}')
+        self.tagTypesLabel = QLabel(f'Chunk types used (amount): {", ".join(tagTypeCounts)}')
         self.topHeaderLayout.addWidget(self.tagTypesLabel)
 
         self.layout.addLayout(self.topHeaderLayout)
@@ -1971,10 +1972,10 @@ class ChunkCombiner(QWidget):
         # combined file settings:
         self.fileSuffixLabel = QLabel('Combined file suffix:')
         self.exportLayout.addWidget(self.fileSuffixLabel)
-
-        self.fileSuffixString = '_combined'
         if findMainWindow().settings:
             self.fileSuffixString = findMainWindow().settings['ChunkCombiner']['chunkFileSuffix']
+        else:
+            self.fileSuffixString = '_combined'
         self.fileSuffix = QLineEdit(self.fileSuffixString)
         self.exportLayout.addWidget(self.fileSuffix)
 
@@ -2000,21 +2001,14 @@ class ChunkCombiner(QWidget):
 
     def updateChunkTypeStack(self):
         print('updating chunk types')
-        # print(self.layout.itemAt(self.layout.count()-1))
-        # print(self.children())
-        print(self.layout.itemAt(self.layout.count()-7).widget())
-        self.layout.itemAt(self.layout.count()-7).widget().setParent(None)
-        self.chunkTypeStack = TagTypeStack(self.tagTypes)
-        self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
+        self.chunkTypeStack.updateTypes()
 
     def addChunkType(self):
         print('adding new chunk type')
         self.tagTypeData['newType'] = [False, False, '', '']
         print(self.tagTypeData)
-        self.chunkTypeStack.setParent(None)
-        self.chunkTypeStack.deleteLater()
-        self.chunkTypeStack = TagTypeStack(self.tagTypes)
-        self.layout.addWidget(self.chunkTypeStack, 2, 0, 1, 3)
+        findMainWindow().curData['projectData']['tagTypeData'] = self.tagTypeData
+        self.chunkTypeStack.updateTypes()
 
     def saveTagTypeData(self):
         print('saving tag type data')
@@ -2054,17 +2048,30 @@ class TagTypeStack(QWidget):
     """
     widget to hold list of chunk types and keep everything interactive
 
-    TODO:
-        - 'add type' button
     """
-    def __init__(self, tagTypes):
+    def __init__(self):
         super(TagTypeStack, self).__init__()
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.layout)
 
-        self.tagTypes = tagTypes
+        self.tagTypes = {}
+        if 'tagTypeData' in findMainWindow().curData['projectData'].keys():
+            self.tagTypes = findMainWindow().curData['projectData']['tagTypeData']
+
+        for tagType in self.tagTypes:
+            curTagTypeHolder = TagTypeHolder(tagType)
+            self.layout.addWidget(curTagTypeHolder)
+
+    def updateTypes(self):
+        # clear layout:  ugly, but works...
+        curId = self.layout.count()-1
+        while curId >= 0:
+            print(self.layout.itemAt(curId).widget())
+            self.layout.itemAt(curId).widget().setParent(None)
+            self.layout.removeItem(self.layout.itemAt(curId))
+            curId -= 1
 
         for tagType in self.tagTypes:
             curTagTypeHolder = TagTypeHolder(tagType)
