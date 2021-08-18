@@ -1763,45 +1763,58 @@ class ChunkTextEdit(QWidget):
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
+        # chunk content text editor:
+        self.textField = QTextEdit()
+        self.textField.setAcceptRichText(False)
+        self.textField.setText(chunkContent['text'])
+        self.textField.textChanged.connect(self.textChange)
+        self.layout.addWidget(self.textField, 0, 0, 4, 1)
+
         # chunk index:
         self.chunkID = chunkID
         self.IDlabel = QLabel('ID: ' + str(chunkID))
+        self.layout.addWidget(self.IDlabel, 0, 1, alignment=Qt.AlignTop)
+
+        # token counter:
+        self.tokens = encoder.encode(self.textField.toPlainText())
+        self.tokenCount = len(self.tokens)
+        self.tokensLabel = QLabel('Tokens: ' + str(self.tokenCount))
+        self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignTop)
+
         # chunk type tag:
         self.typeField = QLineEdit(chunkContent['type'])
         self.typeField.setMaxLength(12)
         self.typeField.setMaximumWidth(80)
         self.typeField.setEnabled(False)
         self.typeField.editingFinished.connect(self.updateType)
-        # chunk content text editor:
-        self.textField = QTextEdit()
-        self.textField.setAcceptRichText(False)
-        self.textField.setText(chunkContent['text'])
-        self.textField.textChanged.connect(self.textChange)
-        # token counter:
-        self.tokens = encoder.encode(self.textField.toPlainText())
-        self.tokenCount = len(self.tokens)
-        self.tokensLabel = QLabel('Tokens: ' + str(self.tokenCount))
+        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignTop)
+
         # 'More' button:
         self.advancedMenu = QToolButton()
         self.advancedMenu.setText('More')
         self.advancedMenu.setPopupMode(QToolButton.InstantPopup)
         self.advancedMenu.setMenu(QMenu(self.advancedMenu))
+        self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignTop)
+
         # add chunk above:
         topSpliceAction = QWidgetAction(self.advancedMenu)
         topSpliceAction.setText('Add chunk above.')
         topSpliceAction.triggered.connect(self.spliceAbove)
         self.advancedMenu.menu().addAction(topSpliceAction)
+
         # add chunk below:
         bottomSpliceAction = QWidgetAction(self.advancedMenu)
         bottomSpliceAction.setText('Add chunk below.')
         bottomSpliceAction.triggered.connect(self.spliceBelow)
         self.advancedMenu.menu().addAction(bottomSpliceAction)
+
         # edit action type tag:
         # TODO: change this to dropdown?
         self.editTypeAction = QWidgetAction(self.advancedMenu)
         self.editTypeAction.setText('Edit chunk type.')
         self.editTypeAction.triggered.connect(self.editActionType)
         self.advancedMenu.menu().addAction(self.editTypeAction)
+
         # delete chunk:
         deleteChunkAction = QWidgetAction(self.advancedMenu)
         deleteChunkAction.setText('Delete chunk.')
@@ -1810,20 +1823,20 @@ class ChunkTextEdit(QWidget):
 
         self.infoLabel = QLabel('ID: ' + str(chunkID) + ' Tokens: ' + str(self.tokenCount))
 
-        self.layout.addWidget(self.textField, 0, 0, 4, 1)
 
-        self.layout.addWidget(self.IDlabel, 0, 1, alignment=Qt.AlignTop)
+
+
 
         # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignTop)
         # self.layout.addWidget(self.infoLabel, 0, 1, alignment=Qt.AlignRight)
 
-        self.layout.addWidget(self.tokensLabel, 1, 1, alignment=Qt.AlignTop)
+
 
         # self.layout.addWidget(self.typeField, 1, 1, alignment=Qt.AlignRight)
-        self.layout.addWidget(self.typeField, 2, 1, alignment=Qt.AlignTop)
+
 
         # self.layout.addWidget(self.advancedMenu, 2, 1, alignment=Qt.AlignRight)
-        self.layout.addWidget(self.advancedMenu, 3, 1, alignment=Qt.AlignTop)
+
 
     def textChange(self):
         """
@@ -1919,7 +1932,6 @@ class ChunkCombiner(QWidget):
         self.layout.addWidget(self.tagTypeStackHeaderLabel)
 
         # chunk type settings:
-        # self.chunkTypeStack = TagTypeStack(self.tagTypes)
         self.chunkTypeStack = TagTypeStack()
         self.layout.addWidget(self.chunkTypeStack)
 
@@ -2072,7 +2084,7 @@ class TagTypeStack(QWidget):
             self.layout.itemAt(curId).widget().setParent(None)
             self.layout.removeItem(self.layout.itemAt(curId))
             curId -= 1
-
+        # add types:
         for tagType in self.tagTypes:
             curTagTypeHolder = TagTypeHolder(tagType)
             self.layout.addWidget(curTagTypeHolder)
