@@ -1631,18 +1631,27 @@ class ChunkStack(QWidget):
         self.layout.setContentsMargins(1, 1, 1, 1)
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
+
         # initial view position:
         # self.startIndex = startIndex
         self.startIndex = 0
         if not findMainWindow().persistentChunkStackStartIndex == 0:
             self.startIndex = findMainWindow().persistentChunkStackStartIndex
-        # self.chunkAmount = chunkAmount
+
+        # self.maxDisplayedChunks =
+
         if findMainWindow().settings:
-            self.chunkAmount = findMainWindow().settings['ChunkStack']['chunkAmount']
+            self.maxDisplayedChunks = findMainWindow().settings['ChunkStack']['maxDisplayedChunks']
         else:
-            self.chunkAmount = 12
-        if len(findMainWindow().curData['chunks']) < self.chunkAmount:
+            self.maxDisplayedChunks = 12
+
+        # self.chunkAmount = chunkAmount
+
+        if len(findMainWindow().curData['chunks']) < self.maxDisplayedChunks:
             self.chunkAmount = len(findMainWindow().curData['chunks'])
+        else:
+            self.chunkAmount = self.maxDisplayedChunks
+
         # change view position:
         curNavBar = ChunkStackNavigation(startIndex=self.startIndex, chunkAmount=self.chunkAmount)
         self.navBar = curNavBar
@@ -1659,13 +1668,18 @@ class ChunkStack(QWidget):
 
     def fillStack(self):
         """update the displayed chunk stack"""
-        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+        # if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+        if len(findMainWindow().curData['chunks']) < self.maxDisplayedChunks:
             self.chunkAmount = len(findMainWindow().curData['chunks'])
+        else:
+            self.chunkAmount = self.maxDisplayedChunks
         # print('Trying to clear ChunkStack..')
         self.clearStack()
         # print('Filling ChunkStack...')
         for chunkTextIndex in range(self.startIndex, self.startIndex + self.chunkAmount):
             self.layout.addWidget(ChunkTextEdit(chunkID=chunkTextIndex, chunkContent=findMainWindow().curData['chunks'][chunkTextIndex]))
+
+        self.navBar.updateChunkAmount()
 
     def clearStack(self):
         """clears the chunk stack"""
@@ -1689,25 +1703,41 @@ class ChunkStackNavigation(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
+        if findMainWindow().settings:
+            self.maxDisplayedChunks = findMainWindow().settings['ChunkStack']['maxDisplayedChunks']
+        else:
+            self.maxDisplayedChunks = 12
+
         # initial view position:
         self.startIndex = startIndex
         self.chunkAmount = chunkAmount
-        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+
+        if len(findMainWindow().curData['chunks']) < self.maxDisplayedChunks:
             self.chunkAmount = len(findMainWindow().curData['chunks'])
+        else:
+            self.chunkAmount = self.maxDisplayedChunks
+
+        # if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+            # self.chunkAmount = len(findMainWindow().curData['chunks'])
+
         # info label:
         self.navLabel = QLabel('View beginning at chunk index:')
         # change view position:
         self.startIndexSpinBox = QSpinBox()
+        self.startIndexSpinBox.setMinimum(0)
         self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
         if not findMainWindow().persistentChunkStackStartIndex == 0:
             self.startIndexSpinBox.setValue(findMainWindow().persistentChunkStackStartIndex)
         self.startIndexSpinBox.valueChanged.connect(self.startIndexChange)
+
         # current viewed token total:
         self.currentTokensInView = 0
         self.tokensInViewLabel = QLabel(f'Tokens in current view: {str(self.currentTokensInView)}')
+
         # count tokens on demand:
         self.countButton = QPushButton('Count')
         self.countButton.clicked.connect(self.updateTokensInView)
+
         # navigation keyboard shortcuts:
         self.chunkViewIndexAddShortcut = QShortcut(QKeySequence('Ctrl+Down'), self)
         self.chunkViewIndexAddShortcut.activated.connect(self.chunkViewIndexAdd)
@@ -1723,8 +1753,14 @@ class ChunkStackNavigation(QWidget):
         """track changes in view position"""
         # make sure indexing can't be messed up:
         # if len(findMainWindow().curData['chunks']) < self.chunkAmount:
-        if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+        # if not len(findMainWindow().curData['chunks']) == self.chunkAmount and self.chunkAmount < findMainWindow().settings['ChunkStack']['chunkAmount']:
+            # self.chunkAmount = len(findMainWindow().curData['chunks'])
+
+        if len(findMainWindow().curData['chunks']) < self.maxDisplayedChunks:
             self.chunkAmount = len(findMainWindow().curData['chunks'])
+        else:
+            self.chunkAmount = self.maxDisplayedChunks
+
         self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
         # apply the spinbox value:
         self.startIndex = self.startIndexSpinBox.value()
@@ -1734,6 +1770,14 @@ class ChunkStackNavigation(QWidget):
         # make view position persistent for session:
         findMainWindow().persistentChunkStackStartIndex = self.startIndex
         self.updateTokensInView()
+
+    def updateChunkAmount(self):
+        if len(findMainWindow().curData['chunks']) < self.maxDisplayedChunks:
+            self.chunkAmount = len(findMainWindow().curData['chunks'])
+        else:
+            self.chunkAmount = self.maxDisplayedChunks
+
+        self.startIndexSpinBox.setMaximum(len(findMainWindow().curData['chunks']) - self.chunkAmount)
 
     def chunkViewIndexAdd(self):
         """navigation shortcut method adding to startIndex"""
