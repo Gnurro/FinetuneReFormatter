@@ -58,11 +58,8 @@ class MainWindow(QMainWindow):
     Main window, holding all the top-level things
 
     TODO:
-        - settings
-            - centralWidget
         - save as
-        - CLI/direct file loading
-            - flags to instantly apply common fixes?
+        - CLI flags to instantly apply common fixes?
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -237,6 +234,19 @@ class MainWindow(QMainWindow):
         self.dataIsSaved = True
         self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
 
+    def saveAs(self):
+        asFileInfo = QFileDialog.getSaveFileName(directory=f'{self.curFileName}', caption='Save as...')
+        # print(asFileInfo[0])
+        with open(asFileInfo[0], 'w', encoding='UTF-8') as outData:
+            if self.curFileType == 'json':
+                outData.write(json.dumps(self.curData))
+            else:
+                outData.write(self.curData)
+        self.curFilePath = asFileInfo[0]
+        self.curFileName = self.curFilePath.split('/')[-1]
+        self.curFileType = self.curFilePath.split('.')[-1]
+        self.setWindowTitle(f'Gnurros FinetuneReFormatter - {self.curFileName}')
+
     def saveSettings(self):
         if self.settings:
             with open('./settings.json', 'w', encoding='UTF-8') as settingsFile:
@@ -264,6 +274,7 @@ class MainWindow(QMainWindow):
         # TODO: save as
         self.menuFile.addAction('&Open', self.fileSelect)
         self.menuFile.addAction('&Save', self.saveCurFile)
+        self.menuFile.addAction('&Save as...', self.saveAs)
         self.menuFile.addAction('&Exit', self.close)
         # if there are multiple allowed modes:
         if len(self.allowedModes) > 1:
@@ -303,9 +314,6 @@ class MainWindow(QMainWindow):
 class IntroScreen(QWidget):
     """
     Intro splash screen with file selection and access to non-file based modes
-
-    TODO:
-        - settings access
     """
     def __init__(self):
         super(IntroScreen, self).__init__()
@@ -750,10 +758,11 @@ class SourceInspector(QWidget):
         priorBadLineCount = self.badLineCount
         self.badLineCount = 0
         # list of strings that are proper ends of lines/end sentences:
-        lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
         if findMainWindow().settings:
             print('line ender settings found!')
             lineEnders = findMainWindow().settings['SourceInspector']['lineEnders']
+        else:
+            lineEnders = ['.', '!', '?', '<|endoftext|>', '”', '“', ':', '—', '*', ')', '_', '’', ']', ',', '"']
         # process line by line:
         for lineIndex in range(0, len(self.textLines)):
             line = self.textLines[lineIndex]
@@ -971,9 +980,6 @@ class InitialPrep(QWidget):
             - wiki fixes from other prep scripts?
         - QuickFixes:
             -
-        - re-chunk adventure logs?
-            - detect adventure logs first?
-            - proper advlog check?
         - file saving dialogs?
     """
     def __init__(self):
@@ -1313,10 +1319,7 @@ class InitialPrep(QWidget):
 
 
 class StatViewer(QWidget):
-    """ Calculate various statistics
-    TODO:
-        - count lines with quotes
-    """
+    """ Calculate various statistics """
     def __init__(self):
         super(StatViewer, self).__init__()
 
@@ -2026,12 +2029,7 @@ class ChunkStack(QWidget):
 
 
 class ChunkStackNavigation(QWidget):
-    """
-    navigation bar for the ChunkStack
-
-    TODO: - fix wonky behavior when going from <12 chunks to >12 chunks
-            - figure out spinbox maximum thingy
-    """
+    """ navigation bar for the ChunkStack """
     def __init__(self, startIndex, chunkAmount):
         super(ChunkStackNavigation, self).__init__()
 
