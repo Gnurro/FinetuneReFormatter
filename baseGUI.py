@@ -26,7 +26,7 @@ from transformers import GPT2Tokenizer
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QStatusBar, QToolBar, QTextEdit, QVBoxLayout, QAction
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QGridLayout, QPushButton, QToolButton, QMenu, QWidgetAction, QSpinBox
 from PyQt5.QtWidgets import QFileDialog, QPlainTextEdit, QCheckBox, QComboBox, QLineEdit, QSizePolicy, QMessageBox, QShortcut
-from PyQt5.QtWidgets import QProgressBar, QFrame
+from PyQt5.QtWidgets import QProgressBar, QFrame, QListWidget
 import PyQt5.QtCore as QtCore
 from PyQt5.QtCore import Qt, QSize, QRect, QThread, QObject
 from PyQt5.QtGui import QColor, QPainter, QTextFormat, QTextCursor, QKeySequence
@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
     def saveSettings(self):
         if self.settings:
             with open('./settings.json', 'w', encoding='UTF-8') as settingsFile:
-                outSettings = json.dumps(self.settings)
+                outSettings = json.dumps(self.settings, ensure_ascii=False)
                 settingsFile.write(outSettings)
                 print('Settings saved to file.')
 
@@ -315,16 +315,19 @@ class IntroScreen(QWidget):
         self.setLayout(self.layout)
 
         self.headLineLabel = QLabel('<h1><b>Gnurros Finetune-ReFormatter</h1></b>')
+        self.layout.addWidget(self.headLineLabel, 0, 0)
 
         self.openFileButton = QPushButton('Open File')
         self.openFileButton.clicked.connect(self.openFile)
+        self.layout.addWidget(self.openFileButton, 1, 0)
+
+        self.settingsMenuButton = QPushButton('Edit Settings')
+        self.settingsMenuButton.clicked.connect(self.toSettingsMenu)
+        self.layout.addWidget(self.settingsMenuButton, 2, 0)
 
         self.exploreTokensButton = QPushButton('Explore tokens')
         self.exploreTokensButton.clicked.connect(self.toTokenExplorer)
-
-        self.layout.addWidget(self.headLineLabel, 0, 0)
-        self.layout.addWidget(self.openFileButton, 1, 0)
-        self.layout.addWidget(self.exploreTokensButton, 2, 0)
+        self.layout.addWidget(self.exploreTokensButton, 3, 0)
 
     def openFile(self):
         findMainWindow().fileSelect()
@@ -332,6 +335,340 @@ class IntroScreen(QWidget):
     def toTokenExplorer(self):
         curTokenExplorer = TokenExplorer()
         findMainWindow().setCentralWidget(curTokenExplorer)
+
+    def toSettingsMenu(self):
+        curSettingsMenu = SettingsMenu()
+        findMainWindow().setCentralWidget(curSettingsMenu)
+
+
+class SettingsMenu(QWidget):
+    """ GUI for settings """
+    def __init__(self):
+        super(SettingsMenu, self).__init__()
+
+        self.layout = QVBoxLayout()
+        self.layout.setAlignment(Qt.AlignTop)
+        self.setLayout(self.layout)
+
+        self.settings = findMainWindow().settings
+
+        print(self.settings)
+
+        self.initGeneralSettingsLayout()
+        self.layout.addWidget(QHLine())
+        self.initSourceInspectorSettingsLayout()
+        self.layout.addWidget(QHLine())
+        self.initInitialPrepSettingsLayout()
+        self.layout.addWidget(QHLine())
+        self.initChunkStackSettingsLayout()
+        self.layout.addWidget(QHLine())
+
+        self.saveSettingsButton = QPushButton('Save Settings')
+        self.saveSettingsButton.clicked.connect(self.updateMainSettingsAndSave)
+        self.layout.addWidget(self.saveSettingsButton)
+
+        self.backToIntroButton = QPushButton('Back')
+        self.backToIntroButton.clicked.connect(lambda: findMainWindow().setCentralWidget(IntroScreen()))
+        self.layout.addWidget(self.backToIntroButton)
+
+    def initGeneralSettingsLayout(self):
+        self.generalSettingsLayout = QVBoxLayout()
+
+        self.windowSettingsHeaderLayout = QHBoxLayout()
+        self.windowSettingsHeaderLabel = QLabel('<b>Window Settings:</b>')
+        self.windowSettingsHeaderLayout.addWidget(self.windowSettingsHeaderLabel)
+        self.generalSettingsLayout.addLayout(self.windowSettingsHeaderLayout)
+
+        self.windowDimensionsLayout = QHBoxLayout()
+
+        self.windowDimensionsXPosLabel = QLabel('X position:')
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsXPosLabel)
+        self.windowDimensionsXPosLine = QLineEdit(f"{self.settings['general']['windowSize'][0]}")
+        self.windowDimensionsXPosLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowSize', 0], int(self.windowDimensionsXPosLine.text())))
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsXPosLine)
+
+        self.windowDimensionsYPosLabel = QLabel('Y position:')
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsYPosLabel)
+        self.windowDimensionsYPosLine = QLineEdit(f"{self.settings['general']['windowSize'][1]}")
+        self.windowDimensionsYPosLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowSize', 1], int(self.windowDimensionsYPosLine.text())))
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsYPosLine)
+
+        self.windowDimensionsWidthLabel = QLabel('Width:')
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsWidthLabel)
+        self.windowDimensionsWidthLine = QLineEdit(f"{self.settings['general']['windowSize'][2]}")
+        self.windowDimensionsWidthLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowSize', 2], int(self.windowDimensionsWidthLine.text())))
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsWidthLine)
+
+        self.windowDimensionsHeightLabel = QLabel('Height:')
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsHeightLabel)
+        self.windowDimensionsHeightLine = QLineEdit(f"{self.settings['general']['windowSize'][3]}")
+        self.windowDimensionsHeightLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowSize', 3], int(self.windowDimensionsHeightLine.text())))
+        self.windowDimensionsLayout.addWidget(self.windowDimensionsHeightLine)
+
+        self.generalSettingsLayout.addLayout(self.windowDimensionsLayout)
+
+        self.windowMoveLayout = QHBoxLayout()
+
+        self.windowMoveXPosLabel = QLabel('Move window to X:')
+        self.windowMoveLayout.addWidget(self.windowMoveXPosLabel)
+        self.windowMoveXPosLine = QLineEdit(f"{self.settings['general']['windowPosition'][0]}")
+        self.windowMoveXPosLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowPosition', 0], int(self.windowMoveXPosLine.text())))
+        self.windowMoveLayout.addWidget(self.windowMoveXPosLine)
+
+        self.windowMoveYPosLabel = QLabel('Y:')
+        self.windowMoveLayout.addWidget(self.windowMoveYPosLabel)
+        self.windowMoveYPosLine = QLineEdit(f"{self.settings['general']['windowPosition'][1]}")
+        self.windowMoveYPosLine.textChanged.connect(lambda: self.updateSetting(['general', 'windowPosition', 1], int(self.windowMoveYPosLine.text())))
+        self.windowMoveLayout.addWidget(self.windowMoveYPosLine)
+
+        self.generalSettingsLayout.addLayout(self.windowMoveLayout)
+
+        self.warningsLayout = QHBoxLayout()
+
+        self.warningsCheckbox = QCheckBox('Show overwrite warnings')
+        self.warningsCheckbox.setChecked(self.settings['general']['overwriteWarnings'])
+        # self.warningsCheckbox.stateChanged.connect(lambda: print(f"warnings state changed to {self.warningsCheckbox.isChecked()}"))
+        self.warningsCheckbox.stateChanged.connect(lambda: self.updateSetting(['general', 'overwriteWarnings'], self.warningsCheckbox.isChecked()))
+        # self.warningsCheckbox.stateChanged.connect(lambda: print(f"warnings state in settings is now {self.settings['general']['overwriteWarnings']}"))
+        self.warningsLayout.addWidget(self.warningsCheckbox)
+
+        self.generalSettingsLayout.addLayout(self.warningsLayout)
+
+        self.layout.addLayout(self.generalSettingsLayout)
+
+    def initSourceInspectorSettingsLayout(self):
+        self.SourceInspectorSettingsLayout = QVBoxLayout()
+
+        self.SourceInspectorSettingsHeaderLayout = QHBoxLayout()
+        self.SourceInspectorSettingsHeaderLabel = QLabel('<b>SourceInspector Settings:</b>')
+        self.SourceInspectorSettingsHeaderLayout.addWidget(self.SourceInspectorSettingsHeaderLabel)
+        self.SourceInspectorSettingsLayout.addLayout(self.SourceInspectorSettingsHeaderLayout)
+
+        self.SourceInspectorSettingsLineendersHeaderLayout = QHBoxLayout()
+
+        self.SourceInspectorSettingsLineendersLabel = QLabel('Line Enders:')
+        self.SourceInspectorSettingsLineendersHeaderLayout.addWidget(self.SourceInspectorSettingsLineendersLabel)
+
+        self.SourceInspectorSettingsLayout.addLayout(self.SourceInspectorSettingsLineendersHeaderLayout)
+
+        self.SourceInspectorSettingsLineendersListerLayout = QHBoxLayout()
+
+        self.SourceInspectorSettingsLineendersList = QListWidget()
+        self.SourceInspectorSettingsLineendersList.addItems(self.settings['SourceInspector']['lineEnders'])
+        self.SourceInspectorSettingsLineendersListerLayout.addWidget(self.SourceInspectorSettingsLineendersList)
+
+        self.SourceInspectorSettingsLineendersRemoveButton = QPushButton('Remove Line Ender')
+        # self.SourceInspectorSettingsLineendersRemoveButton.clicked.connect(lambda: self.SourceInspectorSettingsLineendersList.removeItemWidget(self.SourceInspectorSettingsLineendersList.currentItem()))
+        self.SourceInspectorSettingsLineendersRemoveButton.clicked.connect(lambda: self.SourceInspectorSettingsLineendersList.takeItem(self.SourceInspectorSettingsLineendersList.currentRow()))
+        # self.SourceInspectorSettingsLineendersRemoveButton.clicked.connect(lambda: print([self.SourceInspectorSettingsLineendersList.item(index).text() for index in range(self.SourceInspectorSettingsLineendersList.count())]))
+        self.SourceInspectorSettingsLineendersRemoveButton.clicked.connect(lambda: self.updateSetting(['SourceInspector', 'lineEnders'], [self.SourceInspectorSettingsLineendersList.item(index).text() for index in range(self.SourceInspectorSettingsLineendersList.count())]))
+        self.SourceInspectorSettingsLineendersListerLayout.addWidget(self.SourceInspectorSettingsLineendersRemoveButton)
+
+        self.SourceInspectorSettingsLayout.addLayout(self.SourceInspectorSettingsLineendersListerLayout)
+
+        self.SourceInspectorSettingsLineendersAddLayout = QHBoxLayout()
+
+        self.SourceInspectorSettingsLineendersAddLine = QLineEdit()
+        self.SourceInspectorSettingsLineendersAddLayout.addWidget(self.SourceInspectorSettingsLineendersAddLine)
+
+        self.SourceInspectorSettingsLineendersAddButton = QPushButton('Add Line Ender')
+        self.SourceInspectorSettingsLineendersAddButton.clicked.connect(lambda: self.SourceInspectorSettingsLineendersList.addItem(self.SourceInspectorSettingsLineendersAddLine.text()))
+        self.SourceInspectorSettingsLineendersAddButton.clicked.connect(lambda: self.updateSetting(['SourceInspector', 'lineEnders'], [self.SourceInspectorSettingsLineendersList.item(index).text() for index in range(self.SourceInspectorSettingsLineendersList.count())]))
+        self.SourceInspectorSettingsLineendersAddButton.clicked.connect(lambda: self.SourceInspectorSettingsLineendersAddLine.setText(''))
+        self.SourceInspectorSettingsLineendersAddLayout.addWidget(self.SourceInspectorSettingsLineendersAddButton)
+
+        self.SourceInspectorSettingsLayout.addLayout(self.SourceInspectorSettingsLineendersAddLayout)
+
+        self.layout.addLayout(self.SourceInspectorSettingsLayout)
+
+    def initInitialPrepSettingsLayout(self):
+        self.InitialPrepSettingsLayout = QVBoxLayout()
+
+        self.InitialPrepSettingsHeaderLayout = QHBoxLayout()
+        self.InitialPrepSettingsHeaderLabel = QLabel('<b>InitialPrep Settings:</b>')
+        self.InitialPrepSettingsHeaderLayout.addWidget(self.InitialPrepSettingsHeaderLabel)
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsHeaderLayout)
+
+        self.InitialPrepSettingsSentenceendPlaceholderLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsSentenceendPlaceholderLabel = QLabel('Sentence End Placeholder:')
+        self.InitialPrepSettingsSentenceendPlaceholderLayout.addWidget(self.InitialPrepSettingsSentenceendPlaceholderLabel)
+
+        self.InitialPrepSettingsSentenceendPlaceholderLine = QLineEdit(f"{self.settings['InitialPrep']['sentenceEndPlaceholder']}")
+        self.InitialPrepSettingsSentenceendPlaceholderLine.textChanged.connect(lambda: self.updateSetting(['InitialPrep', 'sentenceEndPlaceholder'], self.InitialPrepSettingsSentenceendPlaceholderLine.text()))
+        self.InitialPrepSettingsSentenceendPlaceholderLayout.addWidget(self.InitialPrepSettingsSentenceendPlaceholderLine)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsSentenceendPlaceholderLayout)
+
+
+        self.InitialPrepSettingsSentenceendersHeaderLayout = QHBoxLayout()
+        self.InitialPrepSettingsSentenceendersLabel = QLabel('Sentence Enders:')
+        self.InitialPrepSettingsSentenceendersHeaderLayout.addWidget(self.InitialPrepSettingsSentenceendersLabel)
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsSentenceendersHeaderLayout)
+
+        self.InitialPrepSettingsSentenceendersListerLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsSentenceendersList = QListWidget()
+        self.InitialPrepSettingsSentenceendersList.addItems(self.settings['InitialPrep']['sentenceEnders'])
+        self.InitialPrepSettingsSentenceendersListerLayout.addWidget(self.InitialPrepSettingsSentenceendersList)
+
+        self.InitialPrepSettingsSentenceendersRemoveButton = QPushButton('Remove Sentence Ender')
+        self.InitialPrepSettingsSentenceendersRemoveButton.clicked.connect(
+            lambda: self.InitialPrepSettingsSentenceendersList.takeItem(
+                self.InitialPrepSettingsSentenceendersList.currentRow()))
+        self.InitialPrepSettingsSentenceendersRemoveButton.clicked.connect(
+            lambda: self.updateSetting(['InitialPrep', 'sentenceEnders'],
+                                       [self.InitialPrepSettingsSentenceendersList.item(index).text() for index in
+                                        range(self.InitialPrepSettingsSentenceendersList.count())]))
+        self.InitialPrepSettingsSentenceendersListerLayout.addWidget(self.InitialPrepSettingsSentenceendersRemoveButton)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsSentenceendersListerLayout)
+
+        self.InitialPrepSettingsSentenceendersAddLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsSentenceendersAddLine = QLineEdit()
+        self.InitialPrepSettingsSentenceendersAddLayout.addWidget(self.InitialPrepSettingsSentenceendersAddLine)
+
+        self.InitialPrepSettingsSentenceendersAddButton = QPushButton('Add Sentence Ender')
+
+        self.InitialPrepSettingsSentenceendersAddButton.clicked.connect(
+            lambda: self.InitialPrepSettingsSentenceendersList.addItem(
+                self.InitialPrepSettingsSentenceendersAddLine.text()))
+        self.InitialPrepSettingsSentenceendersAddButton.clicked.connect(
+            lambda: self.updateSetting(['InitialPrep', 'sentenceEnders'],
+                                       [self.InitialPrepSettingsSentenceendersList.item(index).text() for index in
+                                        range(self.InitialPrepSettingsSentenceendersList.count())]))
+        self.InitialPrepSettingsSentenceendersAddButton.clicked.connect(
+            lambda: self.InitialPrepSettingsSentenceendersAddLine.setText(''))
+
+        self.InitialPrepSettingsSentenceendersAddLayout.addWidget(self.InitialPrepSettingsSentenceendersAddButton)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsSentenceendersAddLayout)
+
+
+        self.InitialPrepSettingsDinkussesHeaderLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsDinkussesLabel = QLabel('Standard Bad Dinkusses:')
+        self.InitialPrepSettingsDinkussesHeaderLayout.addWidget(self.InitialPrepSettingsDinkussesLabel)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsDinkussesHeaderLayout)
+
+        self.InitialPrepSettingsDinkussesListerLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsDinkussesList = QListWidget()
+        self.InitialPrepSettingsDinkussesList.addItems(self.settings['InitialPrep']['badDinkusList'])
+        self.InitialPrepSettingsDinkussesListerLayout.addWidget(self.InitialPrepSettingsDinkussesList)
+
+        self.InitialPrepSettingsDinkussesRemoveButton = QPushButton('Remove Bad Dinkus')
+
+        self.InitialPrepSettingsDinkussesRemoveButton.clicked.connect(
+            lambda: self.InitialPrepSettingsDinkussesList.takeItem(
+                self.InitialPrepSettingsDinkussesList.currentRow()))
+        self.InitialPrepSettingsDinkussesRemoveButton.clicked.connect(
+            lambda: self.updateSetting(['InitialPrep', 'badDinkusList'],
+                                       [self.InitialPrepSettingsDinkussesList.item(index).text() for index in
+                                        range(self.InitialPrepSettingsDinkussesList.count())]))
+
+        self.InitialPrepSettingsDinkussesListerLayout.addWidget(self.InitialPrepSettingsDinkussesRemoveButton)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsDinkussesListerLayout)
+
+        self.InitialPrepSettingsDinkussesAddLayout = QHBoxLayout()
+
+        self.InitialPrepSettingsDinkussesAddLine = QLineEdit()
+        self.InitialPrepSettingsDinkussesAddLayout.addWidget(self.InitialPrepSettingsDinkussesAddLine)
+
+        self.InitialPrepSettingsDinkussesAddButton = QPushButton('Add Bad Dinkus')
+
+        self.InitialPrepSettingsDinkussesAddButton.clicked.connect(
+            lambda: self.InitialPrepSettingsDinkussesList.addItem(
+                self.InitialPrepSettingsDinkussesAddLine.text()))
+        self.InitialPrepSettingsDinkussesAddButton.clicked.connect(
+            lambda: self.updateSetting(['InitialPrep', 'badDinkusList'],
+                                       [self.InitialPrepSettingsDinkussesList.item(index).text() for index in
+                                        range(self.InitialPrepSettingsDinkussesList.count())]))
+        self.InitialPrepSettingsDinkussesAddButton.clicked.connect(
+            lambda: self.InitialPrepSettingsDinkussesAddLine.setText(''))
+
+        self.InitialPrepSettingsDinkussesAddLayout.addWidget(self.InitialPrepSettingsDinkussesAddButton)
+
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsDinkussesAddLayout)
+
+
+        self.InitialPrepSettingsChunkingLayout = QHBoxLayout()
+        self.InitialPrepSettingsChunkingTknsInfixCheckbox = QCheckBox("Add 'tokens per chunk' to ChunkFile name")
+        self.InitialPrepSettingsChunkingTknsInfixCheckbox.setChecked(self.settings['InitialPrep']['chunking']['autoTokensPerChunkSuffix'])
+        self.InitialPrepSettingsChunkingTknsInfixCheckbox.stateChanged.connect(lambda: self.updateSetting(['InitialPrep', 'chunking', 'autoTokensPerChunkSuffix'], self.InitialPrepSettingsChunkingTknsInfixCheckbox.isChecked()))
+
+        self.InitialPrepSettingsChunkingLayout.addWidget(self.InitialPrepSettingsChunkingTknsInfixCheckbox)
+        self.InitialPrepSettingsLayout.addLayout(self.InitialPrepSettingsChunkingLayout)
+
+        self.layout.addLayout(self.InitialPrepSettingsLayout)
+
+    def initChunkStackSettingsLayout(self):
+        self.ChunkStackSettingsLayout = QVBoxLayout()
+
+        self.ChunkStackSettingsHeaderLayout = QHBoxLayout()
+        self.ChunkStackSettingsHeaderLabel = QLabel('<b>ChunkStack Settings:</b>')
+        self.ChunkStackSettingsHeaderLayout.addWidget(self.ChunkStackSettingsHeaderLabel)
+        self.ChunkStackSettingsLayout.addLayout(self.ChunkStackSettingsHeaderLayout)
+
+        self.ChunkStackSettingsMaxDisplayChunksLayout = QHBoxLayout()
+
+        self.ChunkStackSettingsMaxDisplayChunksLabel = QLabel('Maximum number of chunks in view:')
+        self.ChunkStackSettingsMaxDisplayChunksLayout.addWidget(self.ChunkStackSettingsMaxDisplayChunksLabel)
+
+        self.ChunkStackSettingsMaxDisplayChunksSpin = QSpinBox()
+        self.ChunkStackSettingsMaxDisplayChunksSpin.setValue(self.settings['ChunkStack']['maxDisplayedChunks'])
+        self.ChunkStackSettingsMaxDisplayChunksSpin.setMinimum(1)
+
+        self.ChunkStackSettingsMaxDisplayChunksSpin.valueChanged.connect(lambda: self.updateSetting(['ChunkStack', 'maxDisplayedChunks'], self.ChunkStackSettingsMaxDisplayChunksSpin.value()))
+
+        self.ChunkStackSettingsMaxDisplayChunksLayout.addWidget(self.ChunkStackSettingsMaxDisplayChunksSpin)
+
+        self.ChunkStackSettingsLayout.addLayout(self.ChunkStackSettingsMaxDisplayChunksLayout)
+
+
+        self.ChunkStackSettingsInsertChunktypeLayout = QHBoxLayout()
+
+        self.ChunkStackSettingsInsertChunktypeLabel = QLabel('Type of inserted chunks:')
+        self.ChunkStackSettingsInsertChunktypeLayout.addWidget(self.ChunkStackSettingsInsertChunktypeLabel)
+
+        self.ChunkStackSettingsInsertChunktypeLine = QLineEdit(f"{self.settings['ChunkStack']['insertChunkType']}")
+        self.ChunkStackSettingsInsertChunktypeLine.textChanged.connect(lambda: self.updateSetting(['ChunkStack', 'insertChunkType'], self.ChunkStackSettingsInsertChunktypeLine.text()))
+        self.ChunkStackSettingsInsertChunktypeLayout.addWidget(self.ChunkStackSettingsInsertChunktypeLine)
+
+        self.ChunkStackSettingsLayout.addLayout(self.ChunkStackSettingsInsertChunktypeLayout)
+
+        self.ChunkStackSettingsInsertChunktextLayout = QHBoxLayout()
+        self.ChunkStackSettingsInsertChunktextLabel = QLabel('Text in inserted chunks:')
+        self.ChunkStackSettingsInsertChunktextLayout.addWidget(self.ChunkStackSettingsInsertChunktextLabel)
+
+        self.ChunkStackSettingsInsertChunktextLine = QLineEdit(f"{self.settings['ChunkStack']['insertChunkText']}")
+        self.ChunkStackSettingsInsertChunktextLine.textChanged.connect(lambda: self.updateSetting(['ChunkStack', 'insertChunkText'], self.ChunkStackSettingsInsertChunktextLine.text()))
+        self.ChunkStackSettingsInsertChunktextLayout.addWidget(self.ChunkStackSettingsInsertChunktextLine)
+
+        self.ChunkStackSettingsLayout.addLayout(self.ChunkStackSettingsInsertChunktextLayout)
+
+
+        self.layout.addLayout(self.ChunkStackSettingsLayout)
+
+    def updateSetting(self, setting, value):
+        if len(setting) == 2:
+            self.settings[f"{setting[0]}"][f"{setting[1]}"] = value
+        if len(setting) == 3:
+            # print(type(setting[2]))
+            if type(setting[2]) is int:
+                self.settings[f"{setting[0]}"][f"{setting[1]}"][setting[2]] = value
+            else:
+                self.settings[f"{setting[0]}"][f"{setting[1]}"][f"{setting[2]}"] = value
+
+        print('Settings changed:')
+        print(self.settings)
+
+    def updateMainSettingsAndSave(self):
+        findMainWindow().settings = self.settings
+        findMainWindow().saveSettings()
 
 
 class SourceInspector(QWidget):
