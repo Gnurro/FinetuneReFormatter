@@ -6,6 +6,8 @@ TODO:
     - lowercase UPPERCASE chapter intros?
     - check for lines beginning with lowercase
     -
+    - CLI flags to instantly apply common fixes?
+    -
     - multifile/directory mode?
         - open list of files
         - 'save and open next file' option/shortcut
@@ -56,10 +58,6 @@ def findMainWindow():
 class MainWindow(QMainWindow):
     """
     Main window, holding all the top-level things
-
-    TODO:
-        - save as
-        - CLI flags to instantly apply common fixes?
     """
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -271,7 +269,6 @@ class MainWindow(QMainWindow):
         self.topMenu.clear()
         # file menu:
         self.menuFile = self.topMenu.addMenu("&File")
-        # TODO: save as
         self.menuFile.addAction('&Open', self.fileSelect)
         self.menuFile.addAction('&Save', self.saveCurFile)
         self.menuFile.addAction('&Save as...', self.saveAs)
