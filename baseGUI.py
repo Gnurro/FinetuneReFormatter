@@ -77,6 +77,9 @@ class MainWindow(QMainWindow):
             self.setGeometry(windowSize[0], windowSize[1], windowSize[2], windowSize[3],)
             windowPosition = self.settings['general']['windowPosition']
             self.move(windowPosition[0], windowPosition[1])
+            self.fontSize = self.settings['general']['fontSize']
+            self.styler = '* {' + f'font-size: {self.fontSize}pt;' + '}'
+            self.setStyleSheet(self.styler)
         else:
             self.setGeometry(1000, 1000, 800, 800)
             self.move(800, 20)
@@ -438,6 +441,15 @@ class SettingsMenu(QWidget):
         self.warningsLayout.addWidget(self.warningsCheckbox)
 
         self.generalSettingsLayout.addLayout(self.warningsLayout)
+
+        self.fontLayout = QHBoxLayout()
+        self.fontLabel = QLabel('Font size:')
+        self.fontLayout.addWidget(self.fontLabel)
+        self.fontLine = QLineEdit(f'{findMainWindow().fontSize}')
+        self.fontLine.textChanged.connect(
+            lambda: self.updateSetting(['general', 'fontSize'], int(self.fontLine.text())))
+        self.fontLayout.addWidget(self.fontLine)
+        self.generalSettingsLayout.addLayout(self.fontLayout)
 
         self.layout.addLayout(self.generalSettingsLayout)
 
