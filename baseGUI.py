@@ -445,10 +445,12 @@ class SettingsMenu(QWidget):
         self.fontLayout = QHBoxLayout()
         self.fontLabel = QLabel('Font size:')
         self.fontLayout.addWidget(self.fontLabel)
-        self.fontLine = QLineEdit(f'{findMainWindow().fontSize}')
-        self.fontLine.textChanged.connect(
-            lambda: self.updateSetting(['general', 'fontSize'], int(self.fontLine.text())))
-        self.fontLayout.addWidget(self.fontLine)
+        self.fontSpin = QSpinBox()
+        self.fontSpin.setValue(findMainWindow().fontSize)
+        self.fontSpin.setMinimum(1)
+        self.fontSpin.valueChanged.connect(
+            lambda: self.updateSetting(['general', 'fontSize'], int(self.fontSpin.value())))
+        self.fontLayout.addWidget(self.fontSpin)
         self.generalSettingsLayout.addLayout(self.fontLayout)
 
         self.layout.addLayout(self.generalSettingsLayout)
