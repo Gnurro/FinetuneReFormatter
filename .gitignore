@@ -9,6 +9,8 @@ venv.bak/
 
 .idea/
 
+/testing.py
+
 /chapter 1.txt
 /chapter 1 - Kopie.txt
 /chapter 1_fix.txt
